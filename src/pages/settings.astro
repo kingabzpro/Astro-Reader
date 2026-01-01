@@ -1,17 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getSupabaseClient } from '../lib/supabase.server';
+import { getUserSettings } from '../lib/database';
 import SettingsPanel from '../components/SettingsPanel.astro';
 
 let settings = null;
-if (Astro.locals.session) {
-  const supabase = await getSupabaseClient(Astro);
-  const { data } = await supabase
-    .from('reader_settings')
-    .select('*')
-    .eq('user_id', Astro.locals.user!.id)
-    .single();
-  settings = data;
+if (Astro.locals.session && Astro.locals.user) {
+  settings = await getUserSettings(Astro.locals.user.id);
 }
 ---
 

@@ -12,12 +12,18 @@
   "dependencies": {
     "@astrojs/mdx": "^4.3.13",
     "@astrojs/vercel": "^9.0.2",
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.89.0",
-    "astro": "^5.16.6"
+    "@neondatabase/neon-js": "^0.1.0-beta.21",
+    "@neondatabase/serverless": "^1.0.2",
+    "astro": "^5.16.6",
+    "better-auth": "^1.4.10",
+    "drizzle-orm": "^0.45.1",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
+    "@better-auth/cli": "^1.4.10",
+    "@types/pg": "^8.16.0",
+    "drizzle-kit": "^0.31.8",
     "typescript": "^5.7.3"
   }
 }

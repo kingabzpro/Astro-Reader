@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(dir:*)",
+      "Bash(npx dotenv-cli:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

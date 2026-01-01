@@ -1,8 +1,32 @@
 ---
-import { getSupabaseClient } from '../lib/supabase.server';
+import Layout from '../layouts/Layout.astro';
 
-const supabase = await getSupabaseClient(Astro);
-await supabase.auth.signOut();
-
-return Astro.redirect('/login');
+// Handle server-side redirect
+if (!Astro.locals.session) {
+  return Astro.redirect('/login');
+}
 ---
+
+<Layout title="Logout">
+  <div class="logout-page">
+    <p>Signing out...</p>
+  </div>
+</Layout>
+
+<style>
+  .logout-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 50vh;
+  }
+</style>
+
+<script define:vars={{}}>
+  import { authClient } from '../lib/auth-client';
+
+  (async () => {
+    await authClient.signOut();
+    window.location.href = '/login';
+  })();
+</script>

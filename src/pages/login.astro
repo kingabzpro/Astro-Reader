@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { authClient } from '../lib/auth-client';
 ---
 
 <Layout title="Sign In">
@@ -76,6 +77,8 @@ import Layout from '../layouts/Layout.astro';
   </style>
 
   <script>
+    import { authClient } from '../lib/auth-client';
+
     const form = document.getElementById('login-form') as HTMLFormElement;
     const errorMsg = document.getElementById('error-message')!;
 
@@ -88,19 +91,17 @@ import Layout from '../layouts/Layout.astro';
       errorMsg.style.display = 'none';
 
       try {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+        const response = await authClient.signIn.email({
+          email,
+          password,
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Login failed');
+        if (response.error) {
+          errorMsg.textContent = response.error.message || 'Login failed';
+          errorMsg.style.display = 'block';
+        } else {
+          window.location.href = '/';
         }
-
-        window.location.href = '/';
       } catch (error) {
         errorMsg.textContent = (error as Error).message;
         errorMsg.style.display = 'block';

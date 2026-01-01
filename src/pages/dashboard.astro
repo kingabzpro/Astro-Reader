@@ -1,34 +1,27 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getAllBooks, getBook } from '../lib/books';
-import { getSupabaseClient } from '../lib/supabase.server';
+import { getAllReadingProgress } from '../lib/database';
 
 // Get recent progress across all books
 let progressList: any[] = [];
-if (Astro.locals.session) {
-  const supabase = await getSupabaseClient(Astro);
-  const { data } = await supabase
-    .from('reading_progress')
-    .select('*')
-    .eq('user_id', Astro.locals.user!.id)
-    .order('last_read_at', { ascending: false });
+if (Astro.locals.session && Astro.locals.user) {
+  progressList = await getAllReadingProgress(Astro.locals.user.id);
 
-  if (data) {
-    // Group by book and get latest progress per book
-    const progressMap = new Map();
-    for (const item of data) {
-      if (!progressMap.has(item.book_id) ||
-          new Date(item.last_read_at) > new Date(progressMap.get(item.book_id).last_read_at)) {
-        progressMap.set(item.book_id, item);
-      }
+  // Group by book and get latest progress per book
+  const progressMap = new Map();
+  for (const item of progressList) {
+    if (!progressMap.has(item.bookId) ||
+        new Date(item.lastReadAt) > new Date(progressMap.get(item.bookId).lastReadAt)) {
+      progressMap.set(item.bookId, item);
     }
-    progressList = Array.from(progressMap.values()).slice(0, 5);
   }
+  progressList = Array.from(progressMap.values()).slice(0, 5);
 }
 
 // Pre-fetch all books for progress items
 const progressBooks = await Promise.all(
-  progressList.map(async (p) => ({ progress: p, book: await getBook(p.book_id) }))
+  progressList.map(async (p) => ({ progress: p, book: await getBook(p.bookId) }))
 );
 ---
 
@@ -53,11 +46,11 @@ const progressBooks = await Promise.all(
             {progressBooks.map(({ progress, book }) => {
               if (!book) return null;
 
-              const chapterIndex = book.chapters.indexOf(progress.chapter_id);
-              const chapterName = progress.chapter_id.replace(/-/g, ' ').replace(/^./, (c: string) => c.toUpperCase());
+              const chapterIndex = book.chapters.indexOf(progress.chapterId);
+              const chapterName = progress.chapterId.replace(/-/g, ' ').replace(/^./, (c: string) => c.toUpperCase());
 
               return (
-                <a href={`/books/${book.id}/${progress.chapter_id}`} class="continue-card">
+                <a href={`/books/${book.id}/${progress.chapterId}`} class="continue-card">
                   <img
                     src={`/books/${book.id}/cover.jpg`}
                     alt={`Cover of ${book.meta.title}`}
@@ -67,9 +60,9 @@ const progressBooks = await Promise.all(
                     <h3>{book.meta.title}</h3>
                     <p class="continue-meta">Chapter {chapterIndex + 1}: {chapterName}</p>
                     <div class="progress-bar">
-                      <div class="progress-fill" style={`width: ${progress.scroll_position * 100}%`}></div>
+                      <div class="progress-fill" style={`width: ${progress.scrollPosition * 100}%`}></div>
                     </div>
-                    <p class="continue-percent">{Math.round(progress.scroll_position * 100)}% complete</p>
+                    <p class="continue-percent">{Math.round(progress.scrollPosition * 100)}% complete</p>
                   </div>
                 </a>
               );

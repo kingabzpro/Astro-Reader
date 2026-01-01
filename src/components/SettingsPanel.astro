@@ -1,18 +1,18 @@
 ---
 interface Props {
   settings?: {
-    font_size: number;
-    line_height: number;
-    content_width: number;
+    fontSize: string;
+    lineHeight: string;
+    contentWidth: string;
     theme: string;
-  };
+  } | null;
 }
 
 const { settings } = Astro.props;
 
-const fontSize = settings?.font_size || 18;
-const lineHeight = settings?.line_height || 1.6;
-const contentWidth = settings?.content_width || 720;
+const fontSize = settings ? parseFloat(settings.fontSize) : 18;
+const lineHeight = settings ? parseFloat(settings.lineHeight) : 1.6;
+const contentWidth = settings ? parseFloat(settings.contentWidth) : 720;
 const theme = settings?.theme || 'system';
 ---
 

@@ -1,31 +1,24 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getAllBooks } from '../lib/books';
-import { getSupabaseClient } from '../lib/supabase.server';
+import { getAllReadingProgress } from '../lib/database';
 
 const books = await getAllBooks();
 
 // Get reading progress for all books
 let progressMap: Record<string, any> = {};
-if (Astro.locals.session) {
-  const supabase = await getSupabaseClient(Astro);
-  const { data } = await supabase
-    .from('reading_progress')
-    .select('*')
-    .eq('user_id', Astro.locals.user!.id);
+if (Astro.locals.session && Astro.locals.user) {
+  const progressList = await getAllReadingProgress(Astro.locals.user.id);
 
-  if (data) {
-    // Get the latest progress for each book
-    for (const item of data) {
-      const key = item.book_id;
-      if (!progressMap[key] || new Date(item.last_read_at) > new Date(progressMap[key].last_read_at)) {
-        progressMap[key] = item;
-      }
+  // Get the latest progress for each book
+  for (const item of progressList) {
+    const key = item.bookId;
+    if (!progressMap[key] || new Date(item.lastReadAt) > new Date(progressMap[key].lastReadAt)) {
+      progressMap[key] = item;
     }
   }
 }
 ---
-
 <Layout title="Library">
   <div class="library-page">
     <header class="library-header">
@@ -49,22 +42,17 @@ if (Astro.locals.session) {
                   <img
                     src={`/books/${book.id}/cover.jpg`}
                     alt={`Cover of ${book.meta.title}`}
-                    loading="lazy"
                   />
                   {progress && (
                     <div class="progress-indicator">
-                      <div class="progress-bar" style={`width: ${progress.scroll_position * 100}%`}></div>
+                      <span>{Math.round(progress.scrollPosition * 100)}%</span>
                     </div>
                   )}
                 </div>
                 <div class="book-info">
-                  <h2 class="book-title">{book.meta.title}</h2>
+                  <h2>{book.meta.title}</h2>
                   <p class="book-author">{book.meta.author}</p>
                   <p class="book-description">{book.meta.description}</p>
-                  <div class="book-meta">
-                    <span>{book.chapters.length} chapters</span>
-                    {progress && <span class="reading-progress">Reading</span>}
-                  </div>
                 </div>
               </article>
             </a>
@@ -101,17 +89,13 @@ if (Astro.locals.session) {
   .empty-state {
     text-align: center;
     padding: 4rem 2rem;
-  }
-
-  .empty-state code {
     background: var(--card-bg);
-    padding: 0.2rem 0.4rem;
-    border-radius: 4px;
+    border-radius: 12px;
   }
 
   .books-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 2rem;
   }
 
@@ -125,7 +109,6 @@ if (Astro.locals.session) {
     border-radius: 12px;
     overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
-    cursor: pointer;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -139,11 +122,14 @@ if (Astro.locals.session) {
   .book-cover {
     position: relative;
     width: 100%;
-    aspect-ratio: 2/3;
+    padding-top: 150%; /* 2:3 aspect ratio */
     overflow: hidden;
   }
 
   .book-cover img {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -151,73 +137,52 @@ if (Astro.locals.session) {
 
   .progress-indicator {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: rgba(0, 0, 0, 0.3);
-  }
-
-  .progress-bar {
-    height: 100%;
+    bottom: 10px;
+    right: 10px;
     background: var(--accent-color);
-    transition: width 0.3s;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
   }
 
   .book-info {
-    padding: 1.25rem;
+    padding: 1rem;
     flex: 1;
     display: flex;
     flex-direction: column;
   }
 
-  .book-title {
-    font-size: 1.25rem;
-    margin: 0 0 0.25rem 0;
+  .book-info h2 {
+    font-size: 1.1rem;
+    margin: 0 0 0.5rem 0;
     line-height: 1.3;
   }
 
   .book-author {
+    font-size: 0.9rem;
     color: var(--text-color);
     opacity: 0.7;
     margin: 0 0 0.75rem 0;
-    font-size: 0.95rem;
   }
 
   .book-description {
-    font-size: 0.9rem;
-    line-height: 1.5;
+    font-size: 0.85rem;
+    color: var(--text-color);
     opacity: 0.8;
-    margin: 0 0 1rem 0;
+    margin: 0;
+    line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
-  .book-meta {
-    margin-top: auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.85rem;
-    color: var(--text-color);
-    opacity: 0.6;
-  }
-
-  .reading-progress {
-    color: var(--accent-color);
-    font-weight: 500;
-  }
-
   @media (max-width: 640px) {
     .books-grid {
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: 1rem;
-    }
-
-    .library-header h1 {
-      font-size: 2rem;
     }
   }
 </style>

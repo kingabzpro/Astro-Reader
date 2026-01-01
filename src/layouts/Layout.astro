@@ -1,5 +1,5 @@
 ---
-import { getSupabaseClient } from '../lib/supabase.server';
+import { getUserSettings } from '../lib/database';
 
 interface Props {
   title?: string;
@@ -14,20 +14,14 @@ let fontSize = 18;
 let lineHeight = 1.6;
 let contentWidth = 720;
 
-if (Astro.locals.session) {
-  const supabase = await getSupabaseClient(Astro);
-  const { data } = await supabase
-    .from('reader_settings')
-    .select('*')
-    .eq('user_id', Astro.locals.user!.id)
-    .single();
+if (Astro.locals.session && Astro.locals.user) {
+  settings = await getUserSettings(Astro.locals.user.id);
 
-  if (data) {
-    settings = data;
-    theme = data.theme || 'system';
-    fontSize = data.font_size || 18;
-    lineHeight = data.line_height || 1.6;
-    contentWidth = data.content_width || 720;
+  if (settings) {
+    theme = settings.theme || 'system';
+    fontSize = parseFloat(settings.fontSize || '18');
+    lineHeight = parseFloat(settings.lineHeight || '1.6');
+    contentWidth = parseFloat(settings.contentWidth || '720');
   }
 }
 

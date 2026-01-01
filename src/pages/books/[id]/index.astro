@@ -1,7 +1,8 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import { getBook } from '../../../lib/books';
-import { getSupabaseClient } from '../../../lib/supabase.server';
+import { db, readingProgress } from '../../../lib/db';
+import { desc, eq } from 'drizzle-orm';
 
 const { id } = Astro.params;
 
@@ -17,23 +18,24 @@ if (!book) {
 
 // Get reading progress for this book
 let currentProgress = null;
-if (Astro.locals.session) {
-  const supabase = await getSupabaseClient(Astro);
-  const { data } = await supabase
-    .from('reading_progress')
-    .select('*')
-    .eq('user_id', Astro.locals.user!.id)
-    .eq('book_id', id)
-    .order('last_read_at', { ascending: false })
+if (Astro.locals.session && Astro.locals.user) {
+  const progressData = await db
+    .select({
+      chapterId: readingProgress.chapterId,
+      lastReadAt: readingProgress.lastReadAt,
+    })
+    .from(readingProgress)
+    .where(eq(readingProgress.userId, Astro.locals.user.id))
+    .orderBy(desc(readingProgress.lastReadAt))
     .limit(1);
 
-  if (data && data.length > 0) {
-    currentProgress = data[0];
+  if (progressData.length > 0) {
+    currentProgress = progressData[0];
   }
 }
 
 // Determine where to start reading
-const startChapter = currentProgress?.chapter_id || book.chapters[0];
+const startChapter = currentProgress?.chapterId || book.chapters[0];
 ---
 
 <Layout title={book.meta.title}>
