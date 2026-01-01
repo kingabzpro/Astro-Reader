@@ -3,10 +3,12 @@ import { auth } from './auth';
 
 export const onRequest = defineMiddleware(async (context, next) => {
 	// Public routes that don't require authentication
+	// Only the landing page, login, register, logout, and auth API are public
+	// Everything else (including /books/*) requires authentication
 	const publicRoutes = ['/login', '/register', '/logout', '/api/auth'];
-	const isPublicRoute = publicRoutes.some((route) =>
-		context.url.pathname.startsWith(route)
-	);
+	const isPublicRoute =
+		publicRoutes.some((route) => context.url.pathname.startsWith(route)) ||
+		context.url.pathname === '/'; // Make landing page public
 
 	if (isPublicRoute) {
 		return next();

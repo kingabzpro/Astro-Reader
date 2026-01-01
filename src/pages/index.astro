@@ -19,111 +19,448 @@ if (Astro.locals.session && Astro.locals.user) {
   }
 }
 ---
+
 <Layout title="Library">
   <div class="library-page">
-    <header class="library-header">
-      <h1>Library</h1>
-      <p>Choose a book to start reading</p>
-    </header>
-
-    {books.length === 0 ? (
-      <div class="empty-state">
-        <p>No books available yet.</p>
-        <p>Add books to the <code>src/content/books/</code> directory.</p>
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="hero-blob hero-blob-1"></div>
+      <div class="hero-blob hero-blob-2"></div>
+      <div class="hero-blob hero-blob-3"></div>
+      <div class="hero-content">
+        <div class="hero-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span>Your Digital Reading Companion</span>
+        </div>
+        <h1>Discover Your Next<br><span class="gradient-text">Great Adventure</span></h1>
+        <p class="hero-description">
+          {!Astro.locals.session}
+          Track your reading progress, customize your experience, and build your personal library.
+        </p>
+        <p class="hero-description" slot={Astro.locals.session ? "" : "hidden"}>
+          Welcome back! Continue your reading journey where you left off.
+        </p>
+        <div class="hero-actions">
+          {!Astro.locals.session && (
+            <>
+              <a href="/register" class="btn btn-primary">
+                Start Reading Free
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </a>
+              <a href="/login" class="btn btn-secondary">Sign In</a>
+            </>
+          )}
+          {Astro.locals.session && books.length > 0 && (
+            <a href={`/books/${books[0].id}`} class="btn btn-primary">
+              Continue Reading
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </a>
+          )}
+        </div>
+        <div class="hero-stats">
+          <div class="stat-item">
+            <span class="stat-number">{books.length}</span>
+            <span class="stat-label">{books.length === 1 ? 'Book' : 'Books'}</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-number">{books.reduce((acc, book) => acc + book.chapters.length, 0)}</span>
+            <span class="stat-label">Chapters</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-number">Free</span>
+            <span class="stat-label">Forever</span>
+          </div>
+        </div>
       </div>
-    ) : (
-      <div class="books-grid">
-        {books.map(book => {
-          const progress = progressMap[book.id];
-          return (
-            <a href={`/books/${book.id}`} class="book-card-link">
-              <article class="book-card">
-                <div class="book-cover">
-                  <img
-                    src={`/books/${book.id}/cover.jpg`}
-                    alt={`Cover of ${book.meta.title}`}
-                  />
-                  {progress && (
-                    <div class="progress-indicator">
-                      <span>{Math.round(progress.scrollPosition * 100)}%</span>
+    </section>
+
+    <!-- Books Section -->
+    <section class="books-section">
+      <div class="section-header">
+        <div class="section-title">
+          <h2>{Astro.locals.session ? 'Your Library' : 'Featured Books'}</h2>
+          <p>Choose your next read from our collection</p>
+        </div>
+      </div>
+
+      {books.length === 0 ? (
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </div>
+          <h3>No books available</h3>
+          <p>Check back later or add books to the library.</p>
+        </div>
+      ) : (
+        <div class="books-grid">
+          {books.map(book => {
+            const progress = progressMap[book.id];
+            return (
+              <a href={`/books/${book.id}`} class="book-card">
+                <div class="book-cover-wrapper">
+                  <div class="book-cover">
+                    <img
+                      src={`/books/${book.id}/cover.jpg`}
+                      alt={`Cover of ${book.meta.title}`}
+                      loading="lazy"
+                    />
+                    {progress && (
+                      <div class="progress-indicator">
+                        <div class="progress-bar" style={`width: ${progress.scrollPosition * 100}%`}></div>
+                      </div>
+                    )}
+                    <div class="book-overlay">
+                      <div class="overlay-content">
+                        <span class="read-badge">
+                          {progress ? 'Continue' : 'Start'}
+                        </span>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
                 <div class="book-info">
-                  <h2>{book.meta.title}</h2>
+                  <h3>{book.meta.title}</h3>
                   <p class="book-author">{book.meta.author}</p>
-                  <p class="book-description">{book.meta.description}</p>
+                  <div class="book-meta">
+                    <span class="meta-item">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                      </svg>
+                      {book.chapters.length} chapters
+                    </span>
+                    {progress && (
+                      <span class="meta-progress">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"/>
+                          <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        {Math.round(progress.scrollPosition * 100)}%
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </article>
-            </a>
-          );
-        })}
-      </div>
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </section>
+
+    <!-- Features Section (for non-logged users) -->
+    {!Astro.locals.session && (
+      <section class="features-section">
+        <div class="features-header">
+          <h2>Everything You Need</h2>
+          <p>Features designed for the best reading experience</p>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-purple">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <h3>Progress Tracking</h3>
+            <p>Never lose your place. Your reading progress is saved automatically as you read.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-blue">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </div>
+            <h3>Customization</h3>
+            <p>Personalize themes, fonts, and layout settings for comfortable reading.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-pink">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <h3>Secure & Private</h3>
+            <p>Your data is encrypted and secure. Read anywhere, on any device.</p>
+          </div>
+        </div>
+      </section>
     )}
   </div>
 </Layout>
 
 <style>
   .library-page {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 3rem 2rem;
+    overflow-x: hidden;
   }
 
-  .library-header {
+  /* Hero Section */
+  .hero-section {
+    position: relative;
+    padding: 6rem 2rem 4rem;
+    background: linear-gradient(180deg, var(--bg-tertiary) 0%, var(--bg-primary) 100%);
+    overflow: hidden;
+  }
+
+  .hero-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.4;
+    animation: float 20s ease-in-out infinite;
+  }
+
+  .hero-blob-1 {
+    width: 500px;
+    height: 500px;
+    background: var(--accent-primary);
+    top: -200px;
+    right: -100px;
+    animation-delay: 0s;
+  }
+
+  .hero-blob-2 {
+    width: 400px;
+    height: 400px;
+    background: var(--accent-secondary);
+    bottom: -150px;
+    left: -100px;
+    animation-delay: -7s;
+  }
+
+  .hero-blob-3 {
+    width: 300px;
+    height: 300px;
+    background: var(--accent-pink);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation-delay: -14s;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+  }
+
+  .hero-content {
+    max-width: 900px;
+    margin: 0 auto;
     text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 100px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .hero-badge svg {
+    color: var(--accent-orange);
+  }
+
+  .hero-content h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin: 0 0 1.5rem 0;
+    line-height: 1.1;
+    color: var(--text-primary);
+  }
+
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-description {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    margin: 0 0 2rem 0;
+    line-height: 1.6;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 3rem;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary {
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(99, 102, 241, 0.4);
+  }
+
+  .btn-secondary {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+  }
+
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    background: var(--gradient-secondary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    margin-top: 0.25rem;
+  }
+
+  .stat-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border-color);
+  }
+
+  /* Books Section */
+  .books-section {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+  }
+
+  .section-header {
     margin-bottom: 3rem;
   }
 
-  .library-header h1 {
+  .section-title h2 {
     font-size: 2.5rem;
+    font-weight: 700;
     margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
   }
 
-  .library-header p {
-    color: var(--text-color);
-    opacity: 0.7;
+  .section-title p {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
     margin: 0;
   }
 
   .empty-state {
     text-align: center;
-    padding: 4rem 2rem;
+    padding: 5rem 2rem;
     background: var(--card-bg);
-    border-radius: 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
   }
 
+  .empty-icon {
+    color: var(--accent-primary);
+    opacity: 0.3;
+    margin-bottom: 1.5rem;
+  }
+
+  .empty-state h3 {
+    font-size: 1.5rem;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+  }
+
+  .empty-state p {
+    color: var(--text-secondary);
+  }
+
+  /* Books Grid */
   .books-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 2rem;
   }
 
-  .book-card-link {
+  .book-card {
     text-decoration: none;
     color: inherit;
+    display: block;
   }
 
-  .book-card {
-    background: var(--card-bg);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .book-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  .book-cover-wrapper {
+    position: relative;
+    margin-bottom: 1rem;
   }
 
   .book-cover {
     position: relative;
     width: 100%;
-    padding-top: 150%; /* 2:3 aspect ratio */
+    padding-top: 150%;
+    border-radius: 16px;
     overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .book-card:hover .book-cover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   }
 
   .book-cover img {
@@ -137,52 +474,188 @@ if (Astro.locals.session && Astro.locals.user) {
 
   .progress-indicator {
     position: absolute;
-    bottom: 10px;
-    right: 10px;
-    background: var(--accent-color);
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--bg-tertiary);
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--gradient-primary);
+    transition: width 0.3s ease;
+  }
+
+  .book-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: flex-end;
+    padding: 1.5rem;
+  }
+
+  .book-card:hover .book-overlay {
+    opacity: 1;
+  }
+
+  .read-badge {
+    background: var(--gradient-primary);
     color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
     font-weight: 600;
+    font-size: 0.875rem;
   }
 
   .book-info {
-    padding: 1rem;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    padding: 0 0.25rem;
   }
 
-  .book-info h2 {
-    font-size: 1.1rem;
+  .book-info h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
     margin: 0 0 0.5rem 0;
-    line-height: 1.3;
-  }
-
-  .book-author {
-    font-size: 0.9rem;
-    color: var(--text-color);
-    opacity: 0.7;
-    margin: 0 0 0.75rem 0;
-  }
-
-  .book-description {
-    font-size: 0.85rem;
-    color: var(--text-color);
-    opacity: 0.8;
-    margin: 0;
-    line-height: 1.5;
+    line-height: 1.4;
+    color: var(--text-primary);
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
-  @media (max-width: 640px) {
+  .book-author {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.75rem 0;
+  }
+
+  .book-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+  }
+
+  .meta-item,
+  .meta-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--text-tertiary);
+  }
+
+  .meta-progress {
+    color: var(--accent-primary);
+    font-weight: 600;
+  }
+
+  /* Features Section */
+  .features-section {
+    padding: 5rem 2rem;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+  }
+
+  .features-header {
+    text-align: center;
+    margin-bottom: 4rem;
+  }
+
+  .features-header h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+  }
+
+  .features-header p {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    margin: 0;
+  }
+
+  .features-grid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+  }
+
+  .feature-card {
+    padding: 2rem;
+    background: var(--bg-primary);
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    border-color: var(--accent-primary);
+  }
+
+  .feature-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .feature-icon-purple {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+    color: var(--accent-primary);
+  }
+
+  .feature-icon-blue {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(59, 130, 246, 0.15));
+    color: var(--accent-teal);
+  }
+
+  .feature-icon-pink {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(249, 115, 22, 0.15));
+    color: var(--accent-pink);
+  }
+
+  .feature-card h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+  }
+
+  .feature-card p {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    .hero-content h1 {
+      font-size: 2.5rem;
+    }
+
+    .hero-blob-1,
+    .hero-blob-2,
+    .hero-blob-3 {
+      width: 250px;
+      height: 250px;
+    }
+
     .books-grid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 1rem;
+      grid-template-columns: 1fr;
+    }
+
+    .features-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>
