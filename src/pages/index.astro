@@ -1,14 +1,14 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getAllBooks } from '../lib/books';
-import { getAllReadingProgress } from '../lib/database';
+import { getAllProgress } from '../lib/database';
 
 const books = await getAllBooks();
 
 // Get reading progress for all books
 let progressMap: Record<string, any> = {};
 if (Astro.locals.session && Astro.locals.user) {
-  const progressList = await getAllReadingProgress(Astro.locals.user.id);
+  const progressList = await getAllProgress(Astro.locals.user.id);
 
   // Get the latest progress for each book
   for (const item of progressList) {

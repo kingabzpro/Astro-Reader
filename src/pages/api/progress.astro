@@ -1,75 +1,39 @@
----
-import type { APIContext } from 'astro';
-import { getReadingProgress, upsertReadingProgress } from '../../lib/database';
+import type { APIRoute } from 'astro';
+import { saveProgress, getReadingProgress } from '../../lib/database';
 
-export async function POST(context: APIContext) {
-	const { request, locals } = context;
-	
-	console.log('[API] POST /api/progress called');
-	console.log('[API] Request method:', request.method);
-	console.log('[API] Locals session:', !!locals.session);
-	console.log('[API] Locals user:', locals.user?.id);
-
+export const POST: APIRoute = async ({ request, locals }) => {
 	const body = await request.json();
 	const { bookId, chapterId } = body;
-	
-	console.log('[API] Request body:', body);
-
 	const userId = locals.user?.id;
 
 	if (!userId || !bookId || !chapterId) {
-		console.log('[API] Bad request:', { userId, bookId, chapterId });
-		return new Response(JSON.stringify({ error: 'Bad request', userId, bookId, chapterId }), { status: 400 });
+		return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
 	}
 
 	try {
-		const result = await upsertReadingProgress(userId, {
-			bookId,
-			chapterId,
-			scrollPosition: 0,
-		});
-		console.log('[API] Progress saved successfully');
-		return new Response(JSON.stringify({ success: true }), {
-			headers: { 'Content-Type': 'application/json' },
-			status: 200
-		});
+		await saveProgress(userId, bookId, chapterId);
+		return new Response(JSON.stringify({ success: true }));
 	} catch (error) {
-		console.error('[API] Progress save error:', error);
-		return new Response(JSON.stringify({ error: (error as Error).message }), {
-			headers: { 'Content-Type': 'application/json' },
-			status: 500
-		});
+		return new Response(JSON.stringify({ error: (error as Error).message }), { status: 500 });
 	}
-}
+};
 
-export async function GET(context: APIContext) {
-	const { url, locals } = context;
+export const GET: APIRoute = async ({ url, locals }) => {
 	const bookId = url.searchParams.get('book');
 	const chapterId = url.searchParams.get('chapter');
-
 	const userId = locals.user?.id;
 
-	console.log('GET /api/progress:', { userId, bookId, chapterId });
-
 	if (!userId || !bookId || !chapterId) {
-		return new Response('Bad request', { status: 400 });
+		return new Response('Missing required fields', { status: 400 });
 	}
 
 	try {
 		const progress = await getReadingProgress(userId, bookId, chapterId);
-
 		if (!progress) {
-			console.log('No progress found');
 			return new Response('Not found', { status: 404 });
 		}
-
-		console.log('Progress found:', progress);
-		return new Response(JSON.stringify(progress), {
-			headers: { 'Content-Type': 'application/json' },
-		});
+		return new Response(JSON.stringify(progress));
 	} catch (error) {
-		console.error('Progress get error:', error);
 		return new Response((error as Error).message, { status: 500 });
 	}
-}
----
+};

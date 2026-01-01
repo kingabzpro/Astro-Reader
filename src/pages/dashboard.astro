@@ -1,26 +1,21 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getAllBooks, getBook } from '../lib/books';
-import { getAllReadingProgress } from '../lib/database';
+import { getAllProgress } from '../lib/database';
 
-// Get all books for the "Browse" section
 const allBooks = await getAllBooks();
 
-// Get recent progress across all books
 let progressList: any[] = [];
 
-console.log('Dashboard - Session:', !!Astro.locals.session);
-console.log('Dashboard - User:', Astro.locals.user?.id);
-
 if (Astro.locals.session && Astro.locals.user) {
-  progressList = await getAllReadingProgress(Astro.locals.user.id);
+  progressList = await getAllProgress(Astro.locals.user.id);
   console.log('Dashboard - Progress list:', progressList.length, 'items');
+  console.log('Dashboard - Progress items:', JSON.stringify(progressList, null, 2));
 
-  // Group by book and get latest progress per book
   const progressMap = new Map();
   for (const item of progressList) {
     if (!progressMap.has(item.bookId) ||
-        new Date(item.lastReadAt) > new Date(progressMap.get(item.bookId).lastReadAt)) {
+        new Date(item.lastReadAt) > new Date(progressMap.get(item.bookId)?.lastReadAt || 0)) {
       progressMap.set(item.bookId, item);
     }
   }
@@ -28,7 +23,6 @@ if (Astro.locals.session && Astro.locals.user) {
   console.log('Dashboard - Grouped progress:', progressList.length, 'books');
 }
 
-// Pre-fetch all books for progress items
 const progressBooksPromises = progressList.map(async (p) => {
   const book = await getBook(p.bookId);
   return { progress: p, book };
