@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import { getBook, getChapter } from '../../../lib/books';
+import { getUserSettings } from '../../../lib/database';
 import ChapterNavigation from '../../../components/ChapterNavigation.astro';
 import ReadingProgress from '../../../components/ReadingProgress.astro';
 
@@ -18,6 +19,16 @@ if (!book || !book.chapters.includes(chapter)) {
 }
 
 const chapterContent = await getChapter(id, chapter);
+
+// Load settings from database
+let dbSettings = null;
+if (Astro.locals.session && Astro.locals.user) {
+  dbSettings = await getUserSettings(Astro.locals.user.id);
+}
+
+const chapterHTML = chapterContent ? markdownToHTML(chapterContent) : '';
+const chapterIndex = book.chapters.indexOf(chapter);
+const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.toUpperCase());
 
 // Parse chapter content (convert markdown to HTML)
 function markdownToHTML(md: string) {
@@ -175,9 +186,6 @@ function parseInline(text: string): string {
   return text;
 }
 
-const chapterHTML = chapterContent ? markdownToHTML(chapterContent) : '';
-const chapterIndex = book.chapters.indexOf(chapter);
-const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.toUpperCase());
 ---
 
 <Layout title={`${chapterTitle} - ${book.meta.title}`}>
@@ -278,7 +286,6 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
     <ReadingProgress
       bookId={book.id}
       chapterId={chapter}
-      client:load
     />
   </div>
 </Layout>
@@ -808,8 +815,15 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
   }
 </style>
 
-<script>
-  // Reading Settings Manager - uses session storage
+<script define:vars={{
+  dbSettings: dbSettings ? {
+    fontSize: parseInt(dbSettings.fontSize),
+    lineHeight: parseFloat(dbSettings.lineHeight),
+    contentWidth: parseInt(dbSettings.contentWidth),
+    fontFamily: dbSettings.fontFamily,
+    theme: dbSettings.theme,
+  } : null
+}}>
   class ReadingSettings {
     settings: {
       fontSize: number;
@@ -823,16 +837,23 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
       this.settings = this.loadSettings();
       this.initUI();
       this.applySettings();
+      this.saveToDatabase();
     }
 
     loadSettings() {
-      // Try session storage first (for current session)
+      // First, try to use database settings passed from server
+      if (typeof dbSettings !== 'undefined' && dbSettings !== null) {
+        console.log('[Settings] Using database settings');
+        return dbSettings;
+      }
+
+      // Fall back to sessionStorage
       const sessionSettings = sessionStorage.getItem('readingSettings');
       if (sessionSettings) {
         return JSON.parse(sessionSettings);
       }
 
-      // Fall back to localStorage (persists across sessions)
+      // Fall back to localStorage
       const localSettings = localStorage.getItem('readingSettings');
       if (localSettings) {
         return JSON.parse(localSettings);
@@ -849,29 +870,44 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
     }
 
     saveSettings() {
-      // Save to both storages
       const settingsJson = JSON.stringify(this.settings);
       sessionStorage.setItem('readingSettings', settingsJson);
       localStorage.setItem('readingSettings', settingsJson);
     }
 
+    async saveToDatabase() {
+      try {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            font_size: this.settings.fontSize,
+            line_height: this.settings.lineHeight,
+            content_width: this.settings.contentWidth,
+            font_family: this.settings.fontFamily,
+            theme: this.settings.theme,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to save settings to database:', error);
+      }
+    }
+
     applySettings() {
       const root = document.documentElement;
 
-      // Apply font settings
       root.style.setProperty('--reading-font-size', `${this.settings.fontSize}px`);
       root.style.setProperty('--reading-line-height', this.settings.lineHeight.toString());
       root.style.setProperty('--reading-content-width', `${this.settings.contentWidth}px`);
       root.style.setProperty('--reading-font-family', this.settings.fontFamily);
 
-      // Apply theme
       let resolvedTheme = this.settings.theme;
       if (resolvedTheme === 'system') {
         resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       }
       root.setAttribute('data-theme', resolvedTheme);
 
-      // Update UI controls
       const fontSizeEl = document.getElementById('font-size') as HTMLInputElement;
       const fontSizeValueEl = document.getElementById('font-size-value');
       if (fontSizeEl) fontSizeEl.value = this.settings.fontSize.toString();
@@ -887,7 +923,6 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
       if (contentWidthEl) contentWidthEl.value = this.settings.contentWidth.toString();
       if (widthValueEl) widthValueEl.textContent = this.settings.contentWidth.toString();
 
-      // Update active buttons
       document.querySelectorAll('.font-option').forEach(btn => {
         const btnEl = btn as HTMLElement;
         btnEl.classList.toggle('active', btnEl.dataset.font === this.settings.fontFamily);
@@ -900,7 +935,6 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
     }
 
     initUI() {
-      // Settings panel toggle
       const toggle = document.getElementById('settings-toggle');
       const panel = document.getElementById('settings-panel');
       const close = document.getElementById('close-settings');
@@ -913,7 +947,6 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
         if (panel) panel.classList.remove('open');
       });
 
-      // Font size
       const fontSizeInput = document.getElementById('font-size');
       fontSizeInput?.addEventListener('input', (e) => {
         const target = e.target as HTMLInputElement;
@@ -923,9 +956,9 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
         const fontSizeValueEl = document.getElementById('font-size-value');
         if (fontSizeValueEl) fontSizeValueEl.textContent = value.toString();
         this.saveSettings();
+        this.saveToDatabase();
       });
 
-      // Line height
       const lineHeightInput = document.getElementById('line-height');
       lineHeightInput?.addEventListener('input', (e) => {
         const target = e.target as HTMLInputElement;
@@ -935,9 +968,9 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
         const lineHeightValueEl = document.getElementById('line-height-value');
         if (lineHeightValueEl) lineHeightValueEl.textContent = value.toString();
         this.saveSettings();
+        this.saveToDatabase();
       });
 
-      // Content width
       const widthInput = document.getElementById('content-width');
       widthInput?.addEventListener('input', (e) => {
         const target = e.target as HTMLInputElement;
@@ -947,9 +980,9 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
         const widthValueEl = document.getElementById('width-value');
         if (widthValueEl) widthValueEl.textContent = value.toString();
         this.saveSettings();
+        this.saveToDatabase();
       });
 
-      // Font family
       document.querySelectorAll('.font-option').forEach(btn => {
         btn.addEventListener('click', () => {
           const btnEl = btn as HTMLElement;
@@ -962,11 +995,11 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
             btnEl.classList.add('active');
 
             this.saveSettings();
+            this.saveToDatabase();
           }
         });
       });
 
-      // Theme
       document.querySelectorAll('.theme-option').forEach(btn => {
         btn.addEventListener('click', () => {
           const btnEl = btn as HTMLElement;
@@ -985,12 +1018,12 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
             btnEl.classList.add('active');
 
             this.saveSettings();
+            this.saveToDatabase();
           }
         });
       });
     }
   }
 
-  // Initialize settings when page loads
   new ReadingSettings();
 </script>

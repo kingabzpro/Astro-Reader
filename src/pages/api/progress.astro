@@ -4,30 +4,37 @@ import { getReadingProgress, upsertReadingProgress } from '../../lib/database';
 
 export async function POST(context: APIContext) {
 	const { request, locals } = context;
-	const { bookId, chapterId } = await request.json();
+	
+	console.log('[API] POST /api/progress called');
+	console.log('[API] Request method:', request.method);
+	console.log('[API] Locals session:', !!locals.session);
+	console.log('[API] Locals user:', locals.user?.id);
+
+	const body = await request.json();
+	const { bookId, chapterId } = body;
+	
+	console.log('[API] Request body:', body);
 
 	const userId = locals.user?.id;
 
-	console.log('POST /api/progress:', { userId, bookId, chapterId });
-
 	if (!userId || !bookId || !chapterId) {
-		console.log('Bad request: missing fields', { userId, bookId, chapterId });
+		console.log('[API] Bad request:', { userId, bookId, chapterId });
 		return new Response(JSON.stringify({ error: 'Bad request', userId, bookId, chapterId }), { status: 400 });
 	}
 
 	try {
-		await upsertReadingProgress(userId, {
+		const result = await upsertReadingProgress(userId, {
 			bookId,
 			chapterId,
-			scrollPosition: 0, // Always save 0, just tracking which chapter
+			scrollPosition: 0,
 		});
-		console.log('Progress saved successfully');
+		console.log('[API] Progress saved successfully');
 		return new Response(JSON.stringify({ success: true }), {
 			headers: { 'Content-Type': 'application/json' },
 			status: 200
 		});
 	} catch (error) {
-		console.error('Progress save error:', error);
+		console.error('[API] Progress save error:', error);
 		return new Response(JSON.stringify({ error: (error as Error).message }), {
 			headers: { 'Content-Type': 'application/json' },
 			status: 500

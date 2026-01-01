@@ -60,15 +60,13 @@ export async function upsertReadingProgress(
 			.insert(readingProgress)
 			.values({
 				userId,
-				...data,
+				bookId: data.bookId,
+				chapterId: data.chapterId,
+				scrollPosition: data.scrollPosition,
 				lastReadAt: new Date(),
 			})
 			.onConflictDoUpdate({
-				target: [
-					readingProgress.userId,
-					readingProgress.bookId,
-					readingProgress.chapterId,
-				],
+				target: [readingProgress.userId, readingProgress.bookId, readingProgress.chapterId],
 				set: {
 					scrollPosition: data.scrollPosition,
 					lastReadAt: new Date(),
@@ -91,6 +89,9 @@ export async function getAllReadingProgress(userId: string) {
 			orderBy: [desc(readingProgress.lastReadAt)],
 		});
 		console.log('[DB] getAllReadingProgress result:', progress.length, 'items');
+		if (progress.length > 0) {
+			console.log('[DB] First item:', JSON.stringify(progress[0], null, 2));
+		}
 		return progress;
 	} catch (error) {
 		console.error('[DB] getAllReadingProgress error:', error);

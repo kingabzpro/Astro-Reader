@@ -7,36 +7,28 @@ interface Props {
 const { bookId, chapterId } = Astro.props;
 ---
 
-<div id="reading-progress" data-book={bookId} data-chapter={chapterId}></div>
+<div id="reading-progress"></div>
 
 <script define:vars={{ bookId, chapterId }}>
-  // Save progress to server - just tracks which chapter you're on
-  async function saveProgress() {
+  console.log('[Progress] Starting:', bookId, chapterId);
+  
+  async function save() {
     try {
-      const response = await fetch('/api/progress', {
+      const res = await fetch('/api/progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookId,
-          chapterId,
-        }),
+        credentials: 'include',
+        body: JSON.stringify({ bookId, chapterId }),
       });
-
-      if (!response.ok) {
-        console.error('Failed to save progress:', response.status);
-        const error = await response.json();
-        console.error('Error details:', error);
-        return;
-      }
-      console.log('Progress saved:', { bookId, chapterId });
-    } catch (error) {
-      console.error('Error saving progress:', error);
+      console.log('[Progress] Result:', res.status);
+    } catch (e) {
+      console.error('[Progress] Error:', e);
     }
   }
-
-  // Save progress immediately when chapter loads
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('Chapter loaded, saving progress:', { bookId, chapterId });
-    saveProgress();
-  });
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', save);
+  } else {
+    save();
+  }
 </script>

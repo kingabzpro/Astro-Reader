@@ -396,10 +396,16 @@ const fontFamily = settings?.fontFamily || 'sans-serif';
         await fetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newSettings),
+          credentials: 'include',
+          body: JSON.stringify({
+            font_size: newSettings.fontSize,
+            line_height: newSettings.lineHeight,
+            content_width: newSettings.contentWidth,
+            font_family: newSettings.fontFamily,
+            theme: newSettings.theme,
+          }),
         });
 
-        // Show toast
         const toast = document.getElementById('toast');
         if (toast) {
           toast.classList.add('show');
@@ -411,7 +417,6 @@ const fontFamily = settings?.fontFamily || 'sans-serif';
     }, 500);
   }
 
-  // Font size
   const fontSizeInput = document.getElementById('font-size');
   fontSizeInput?.addEventListener('input', (e) => {
     const value = e.target.value;
@@ -420,7 +425,6 @@ const fontFamily = settings?.fontFamily || 'sans-serif';
     saveSettings({ fontSize: parseInt(value) });
   });
 
-  // Line height
   const lineHeightInput = document.getElementById('line-height');
   lineHeightInput?.addEventListener('input', (e) => {
     const value = e.target.value;
@@ -429,7 +433,6 @@ const fontFamily = settings?.fontFamily || 'sans-serif';
     saveSettings({ lineHeight: parseFloat(value) });
   });
 
-  // Content width
   const widthInput = document.getElementById('content-width');
   widthInput?.addEventListener('input', (e) => {
     const value = e.target.value;
@@ -438,7 +441,6 @@ const fontFamily = settings?.fontFamily || 'sans-serif';
     saveSettings({ contentWidth: parseInt(value) });
   });
 
-  // Font family
   const fontButtons = document.querySelectorAll('.option-button[data-font]');
   fontButtons.forEach(btn => {
     if (btn.getAttribute('data-font') === fontFamily) {
@@ -456,7 +458,6 @@ const fontFamily = settings?.fontFamily || 'sans-serif';
     });
   });
 
-  // Theme
   const themeButtons = document.querySelectorAll('.option-button[data-theme]');
   themeButtons.forEach(btn => {
     if (btn.getAttribute('data-theme') === theme) {
