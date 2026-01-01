@@ -54,31 +54,46 @@ export async function upsertReadingProgress(
 		scrollPosition: number;
 	}
 ) {
-	await db
-		.insert(readingProgress)
-		.values({
-			userId,
-			...data,
-			lastReadAt: new Date(),
-		})
-		.onConflictDoUpdate({
-			target: [
-				readingProgress.userId,
-				readingProgress.bookId,
-				readingProgress.chapterId,
-			],
-			set: {
-				scrollPosition: data.scrollPosition,
+	console.log('[DB] upsertReadingProgress called:', { userId, data });
+	try {
+		const result = await db
+			.insert(readingProgress)
+			.values({
+				userId,
+				...data,
 				lastReadAt: new Date(),
-				updatedAt: new Date(),
-			},
-		});
+			})
+			.onConflictDoUpdate({
+				target: [
+					readingProgress.userId,
+					readingProgress.bookId,
+					readingProgress.chapterId,
+				],
+				set: {
+					scrollPosition: data.scrollPosition,
+					lastReadAt: new Date(),
+					updatedAt: new Date(),
+				},
+			});
+		console.log('[DB] upsertReadingProgress success:', result);
+		return result;
+	} catch (error) {
+		console.error('[DB] upsertReadingProgress error:', error);
+		throw error;
+	}
 }
 
 export async function getAllReadingProgress(userId: string) {
-	const progress = await db.query.readingProgress.findMany({
-		where: eq(readingProgress.userId, userId),
-		orderBy: [desc(readingProgress.lastReadAt)],
-	});
-	return progress;
+	console.log('[DB] getAllReadingProgress called for userId:', userId);
+	try {
+		const progress = await db.query.readingProgress.findMany({
+			where: eq(readingProgress.userId, userId),
+			orderBy: [desc(readingProgress.lastReadAt)],
+		});
+		console.log('[DB] getAllReadingProgress result:', progress.length, 'items');
+		return progress;
+	} catch (error) {
+		console.error('[DB] getAllReadingProgress error:', error);
+		throw error;
+	}
 }
