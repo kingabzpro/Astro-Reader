@@ -36,14 +36,13 @@ if (Astro.locals.session && Astro.locals.user) {
         </div>
         <h1>Discover Your Next<br><span class="gradient-text">Great Adventure</span></h1>
         <p class="hero-description">
-          {!Astro.locals.session}
-          Track your reading progress, customize your experience, and build your personal library.
-        </p>
-        <p class="hero-description" slot={Astro.locals.session ? "" : "hidden"}>
-          Welcome back! Continue your reading journey where you left off.
+          {Astro.locals.session
+            ? `Welcome back, ${Astro.locals.user?.name || 'Reader'}! Continue your reading journey.`
+            : 'Track your reading progress, customize your experience, and build your personal library.'
+          }
         </p>
         <div class="hero-actions">
-          {!Astro.locals.session && (
+          {!Astro.locals.session ? (
             <>
               <a href="/register" class="btn btn-primary">
                 Start Reading Free
@@ -54,15 +53,17 @@ if (Astro.locals.session && Astro.locals.user) {
               </a>
               <a href="/login" class="btn btn-secondary">Sign In</a>
             </>
-          )}
-          {Astro.locals.session && books.length > 0 && (
-            <a href={`/books/${books[0].id}`} class="btn btn-primary">
-              Continue Reading
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
-              </svg>
-            </a>
+          ) : (
+            <>
+              <a href="/dashboard" class="btn btn-primary">
+                Go to Dashboard
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </a>
+              <a href="/settings" class="btn btn-secondary">Settings</a>
+            </>
           )}
         </div>
         <div class="hero-stats">

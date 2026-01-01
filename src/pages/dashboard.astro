@@ -28,7 +28,7 @@ const progressBooks = await Promise.all(
 <Layout title="Dashboard">
   <div class="dashboard-page">
     <header class="dashboard-header">
-      <h1>Welcome Back</h1>
+      <h1>Hello, {Astro.locals.user?.name || 'User'}! 👋</h1>
       <p>Continue where you left off</p>
     </header>
 
