@@ -825,14 +825,6 @@ function parseInline(text: string): string {
   } : null
 }}>
   class ReadingSettings {
-    settings: {
-      fontSize: number;
-      lineHeight: number;
-      contentWidth: number;
-      fontFamily: string;
-      theme: string;
-    };
-
     constructor() {
       this.settings = this.loadSettings();
       this.initUI();
@@ -841,25 +833,20 @@ function parseInline(text: string): string {
     }
 
     loadSettings() {
-      // First, try to use database settings passed from server
       if (typeof dbSettings !== 'undefined' && dbSettings !== null) {
-        console.log('[Settings] Using database settings');
         return dbSettings;
       }
 
-      // Fall back to sessionStorage
       const sessionSettings = sessionStorage.getItem('readingSettings');
       if (sessionSettings) {
         return JSON.parse(sessionSettings);
       }
 
-      // Fall back to localStorage
       const localSettings = localStorage.getItem('readingSettings');
       if (localSettings) {
         return JSON.parse(localSettings);
       }
 
-      // Default settings
       return {
         fontSize: 18,
         lineHeight: 1.6,
@@ -908,28 +895,28 @@ function parseInline(text: string): string {
       }
       root.setAttribute('data-theme', resolvedTheme);
 
-      const fontSizeEl = document.getElementById('font-size') as HTMLInputElement;
+      const fontSizeEl = document.getElementById('font-size');
       const fontSizeValueEl = document.getElementById('font-size-value');
       if (fontSizeEl) fontSizeEl.value = this.settings.fontSize.toString();
       if (fontSizeValueEl) fontSizeValueEl.textContent = this.settings.fontSize.toString();
 
-      const lineHeightEl = document.getElementById('line-height') as HTMLInputElement;
+      const lineHeightEl = document.getElementById('line-height');
       const lineHeightValueEl = document.getElementById('line-height-value');
       if (lineHeightEl) lineHeightEl.value = this.settings.lineHeight.toString();
       if (lineHeightValueEl) lineHeightValueEl.textContent = this.settings.lineHeight.toString();
 
-      const contentWidthEl = document.getElementById('content-width') as HTMLInputElement;
+      const contentWidthEl = document.getElementById('content-width');
       const widthValueEl = document.getElementById('width-value');
       if (contentWidthEl) contentWidthEl.value = this.settings.contentWidth.toString();
       if (widthValueEl) widthValueEl.textContent = this.settings.contentWidth.toString();
 
       document.querySelectorAll('.font-option').forEach(btn => {
-        const btnEl = btn as HTMLElement;
+        const btnEl = btn;
         btnEl.classList.toggle('active', btnEl.dataset.font === this.settings.fontFamily);
       });
 
       document.querySelectorAll('.theme-option').forEach(btn => {
-        const btnEl = btn as HTMLElement;
+        const btnEl = btn;
         btnEl.classList.toggle('active', btnEl.dataset.theme === this.settings.theme);
       });
     }
@@ -949,7 +936,7 @@ function parseInline(text: string): string {
 
       const fontSizeInput = document.getElementById('font-size');
       fontSizeInput?.addEventListener('input', (e) => {
-        const target = e.target as HTMLInputElement;
+        const target = e.target;
         const value = parseInt(target.value);
         this.settings.fontSize = value;
         document.documentElement.style.setProperty('--reading-font-size', `${value}px`);
@@ -961,7 +948,7 @@ function parseInline(text: string): string {
 
       const lineHeightInput = document.getElementById('line-height');
       lineHeightInput?.addEventListener('input', (e) => {
-        const target = e.target as HTMLInputElement;
+        const target = e.target;
         const value = parseFloat(target.value);
         this.settings.lineHeight = value;
         document.documentElement.style.setProperty('--reading-line-height', value.toString());
@@ -973,7 +960,7 @@ function parseInline(text: string): string {
 
       const widthInput = document.getElementById('content-width');
       widthInput?.addEventListener('input', (e) => {
-        const target = e.target as HTMLInputElement;
+        const target = e.target;
         const value = parseInt(target.value);
         this.settings.contentWidth = value;
         document.documentElement.style.setProperty('--reading-content-width', `${value}px`);
@@ -985,7 +972,7 @@ function parseInline(text: string): string {
 
       document.querySelectorAll('.font-option').forEach(btn => {
         btn.addEventListener('click', () => {
-          const btnEl = btn as HTMLElement;
+          const btnEl = btn;
           const font = btnEl.dataset.font;
           if (font) {
             this.settings.fontFamily = font;
@@ -1002,7 +989,7 @@ function parseInline(text: string): string {
 
       document.querySelectorAll('.theme-option').forEach(btn => {
         btn.addEventListener('click', () => {
-          const btnEl = btn as HTMLElement;
+          const btnEl = btn;
           const theme = btnEl.dataset.theme;
           if (theme) {
             this.settings.theme = theme;
