@@ -30,7 +30,6 @@ function markdownToHTML(md: string) {
   let inCodeBlock = false;
   let inList = false;
   let listType: 'ul' | 'ol' | null = null;
-  let listItems: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -46,7 +45,6 @@ function markdownToHTML(md: string) {
         if (inList) {
           result.push(listType === 'ul' ? '</ul>' : '</ol>');
           inList = false;
-          listItems = [];
         }
         result.push('<pre><code>');
         inCodeBlock = true;
@@ -65,7 +63,6 @@ function markdownToHTML(md: string) {
       if (inList) {
         result.push(listType === 'ul' ? '</ul>' : '</ol>');
         inList = false;
-        listItems = [];
       }
       continue;
     }
@@ -75,7 +72,6 @@ function markdownToHTML(md: string) {
       if (inList) {
         result.push(listType === 'ul' ? '</ul>' : '</ol>');
         inList = false;
-        listItems = [];
       }
       const match = trimmedLine.match(/^(#{1,4})\s+(.+)$/);
       if (match) {
@@ -91,7 +87,6 @@ function markdownToHTML(md: string) {
       if (inList) {
         result.push(listType === 'ul' ? '</ul>' : '</ol>');
         inList = false;
-        listItems = [];
       }
       result.push('<hr>');
       continue;
@@ -133,7 +128,6 @@ function markdownToHTML(md: string) {
       if (inList) {
         result.push(listType === 'ul' ? '</ul>' : '</ol>');
         inList = false;
-        listItems = [];
       }
       const content = trimmedLine.startsWith('&gt; ') ? trimmedLine.substring(5) : trimmedLine.substring(2);
       result.push(`<blockquote>${parseInline(escapeHtml(content))}</blockquote>`);
@@ -144,7 +138,6 @@ function markdownToHTML(md: string) {
     if (inList) {
       result.push(listType === 'ul' ? '</ul>' : '</ol>');
       inList = false;
-      listItems = [];
     }
     result.push(`<p>${parseInline(escapeHtml(trimmedLine))}</p>`);
   }
@@ -818,6 +811,14 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
 <script>
   // Reading Settings Manager - uses session storage
   class ReadingSettings {
+    settings: {
+      fontSize: number;
+      lineHeight: number;
+      contentWidth: number;
+      fontFamily: string;
+      theme: string;
+    };
+
     constructor() {
       this.settings = this.loadSettings();
       this.initUI();
@@ -859,7 +860,7 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
 
       // Apply font settings
       root.style.setProperty('--reading-font-size', `${this.settings.fontSize}px`);
-      root.style.setProperty('--reading-line-height', this.settings.lineHeight);
+      root.style.setProperty('--reading-line-height', this.settings.lineHeight.toString());
       root.style.setProperty('--reading-content-width', `${this.settings.contentWidth}px`);
       root.style.setProperty('--reading-font-family', this.settings.fontFamily);
 
@@ -871,22 +872,30 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
       root.setAttribute('data-theme', resolvedTheme);
 
       // Update UI controls
-      document.getElementById('font-size').value = this.settings.fontSize;
-      document.getElementById('font-size-value').textContent = this.settings.fontSize;
+      const fontSizeEl = document.getElementById('font-size') as HTMLInputElement;
+      const fontSizeValueEl = document.getElementById('font-size-value');
+      if (fontSizeEl) fontSizeEl.value = this.settings.fontSize.toString();
+      if (fontSizeValueEl) fontSizeValueEl.textContent = this.settings.fontSize.toString();
 
-      document.getElementById('line-height').value = this.settings.lineHeight;
-      document.getElementById('line-height-value').textContent = this.settings.lineHeight;
+      const lineHeightEl = document.getElementById('line-height') as HTMLInputElement;
+      const lineHeightValueEl = document.getElementById('line-height-value');
+      if (lineHeightEl) lineHeightEl.value = this.settings.lineHeight.toString();
+      if (lineHeightValueEl) lineHeightValueEl.textContent = this.settings.lineHeight.toString();
 
-      document.getElementById('content-width').value = this.settings.contentWidth;
-      document.getElementById('width-value').textContent = this.settings.contentWidth;
+      const contentWidthEl = document.getElementById('content-width') as HTMLInputElement;
+      const widthValueEl = document.getElementById('width-value');
+      if (contentWidthEl) contentWidthEl.value = this.settings.contentWidth.toString();
+      if (widthValueEl) widthValueEl.textContent = this.settings.contentWidth.toString();
 
       // Update active buttons
       document.querySelectorAll('.font-option').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.font === this.settings.fontFamily);
+        const btnEl = btn as HTMLElement;
+        btnEl.classList.toggle('active', btnEl.dataset.font === this.settings.fontFamily);
       });
 
       document.querySelectorAll('.theme-option').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.theme === this.settings.theme);
+        const btnEl = btn as HTMLElement;
+        btnEl.classList.toggle('active', btnEl.dataset.theme === this.settings.theme);
       });
     }
 
@@ -897,74 +906,86 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
       const close = document.getElementById('close-settings');
 
       toggle?.addEventListener('click', () => {
-        panel.classList.toggle('open');
+        if (panel) panel.classList.toggle('open');
       });
 
       close?.addEventListener('click', () => {
-        panel.classList.remove('open');
+        if (panel) panel.classList.remove('open');
       });
 
       // Font size
       const fontSizeInput = document.getElementById('font-size');
       fontSizeInput?.addEventListener('input', (e) => {
-        const value = parseInt(e.target.value);
+        const target = e.target as HTMLInputElement;
+        const value = parseInt(target.value);
         this.settings.fontSize = value;
         document.documentElement.style.setProperty('--reading-font-size', `${value}px`);
-        document.getElementById('font-size-value').textContent = value;
+        const fontSizeValueEl = document.getElementById('font-size-value');
+        if (fontSizeValueEl) fontSizeValueEl.textContent = value.toString();
         this.saveSettings();
       });
 
       // Line height
       const lineHeightInput = document.getElementById('line-height');
       lineHeightInput?.addEventListener('input', (e) => {
-        const value = parseFloat(e.target.value);
+        const target = e.target as HTMLInputElement;
+        const value = parseFloat(target.value);
         this.settings.lineHeight = value;
-        document.documentElement.style.setProperty('--reading-line-height', value);
-        document.getElementById('line-height-value').textContent = value;
+        document.documentElement.style.setProperty('--reading-line-height', value.toString());
+        const lineHeightValueEl = document.getElementById('line-height-value');
+        if (lineHeightValueEl) lineHeightValueEl.textContent = value.toString();
         this.saveSettings();
       });
 
       // Content width
       const widthInput = document.getElementById('content-width');
       widthInput?.addEventListener('input', (e) => {
-        const value = parseInt(e.target.value);
+        const target = e.target as HTMLInputElement;
+        const value = parseInt(target.value);
         this.settings.contentWidth = value;
         document.documentElement.style.setProperty('--reading-content-width', `${value}px`);
-        document.getElementById('width-value').textContent = value;
+        const widthValueEl = document.getElementById('width-value');
+        if (widthValueEl) widthValueEl.textContent = value.toString();
         this.saveSettings();
       });
 
       // Font family
       document.querySelectorAll('.font-option').forEach(btn => {
         btn.addEventListener('click', () => {
-          const font = btn.dataset.font;
-          this.settings.fontFamily = font;
-          document.documentElement.style.setProperty('--reading-font-family', font);
+          const btnEl = btn as HTMLElement;
+          const font = btnEl.dataset.font;
+          if (font) {
+            this.settings.fontFamily = font;
+            document.documentElement.style.setProperty('--reading-font-family', font);
 
-          document.querySelectorAll('.font-option').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
+            document.querySelectorAll('.font-option').forEach(b => b.classList.remove('active'));
+            btnEl.classList.add('active');
 
-          this.saveSettings();
+            this.saveSettings();
+          }
         });
       });
 
       // Theme
       document.querySelectorAll('.theme-option').forEach(btn => {
         btn.addEventListener('click', () => {
-          const theme = btn.dataset.theme;
-          this.settings.theme = theme;
+          const btnEl = btn as HTMLElement;
+          const theme = btnEl.dataset.theme;
+          if (theme) {
+            this.settings.theme = theme;
 
-          let resolvedTheme = theme;
-          if (theme === 'system') {
-            resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            let resolvedTheme = theme;
+            if (theme === 'system') {
+              resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+
+            document.documentElement.setAttribute('data-theme', resolvedTheme);
+
+            document.querySelectorAll('.theme-option').forEach(b => b.classList.remove('active'));
+            btnEl.classList.add('active');
+
+            this.saveSettings();
           }
-
-          document.documentElement.setAttribute('data-theme', resolvedTheme);
-
-          document.querySelectorAll('.theme-option').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-
-          this.saveSettings();
         });
       });
     }

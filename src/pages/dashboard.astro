@@ -29,9 +29,13 @@ if (Astro.locals.session && Astro.locals.user) {
 }
 
 // Pre-fetch all books for progress items
-const progressBooks = await Promise.all(
-  progressList.map(async (p) => ({ progress: p, book: await getBook(p.bookId) }))
-).then(results => results.filter(r => r.book !== null));
+const progressBooksPromises = progressList.map(async (p) => {
+  const book = await getBook(p.bookId);
+  return { progress: p, book };
+});
+
+const progressBooksWithNulls = await Promise.all(progressBooksPromises);
+const progressBooks = progressBooksWithNulls.filter((r): r is { progress: any; book: any } => r.book !== null);
 
 console.log('Dashboard - Progress books:', progressBooks.length);
 ---
