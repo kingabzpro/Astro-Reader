@@ -1,0 +1,77 @@
+---
+interface Props {
+  bookId: string;
+  chapterId: string;
+}
+
+const { bookId, chapterId } = Astro.props;
+---
+
+<div id="reading-progress" data-book={bookId} data-chapter={chapterId}></div>
+
+<script define:vars={{ bookId, chapterId }}>
+  // Throttled progress tracking
+  let saveTimeout = null;
+  const SAVE_DELAY = 2000;
+
+  // Calculate scroll percentage
+  function getScrollProgress() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    return docHeight > 0 ? Math.min(scrollTop / docHeight, 1) : 0;
+  }
+
+  // Save progress to server
+  async function saveProgress(progress) {
+    try {
+      const response = await fetch('/api/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookId,
+          chapterId,
+          progress,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save progress');
+    } catch (error) {
+      console.error('Error saving progress:', error);
+    }
+  }
+
+  // Throttled scroll handler
+  function handleScroll() {
+    const progress = getScrollProgress();
+
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = window.setTimeout(() => {
+      saveProgress(progress);
+    }, SAVE_DELAY);
+  }
+
+  // Restore scroll position on load
+  async function restoreProgress() {
+    try {
+      const response = await fetch(`/api/progress?book=${bookId}&chapter=${chapterId}`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (data.scroll_position !== undefined) {
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        window.scrollTo(0, data.scroll_position * docHeight);
+      }
+    } catch (error) {
+      console.error('Error restoring progress:', error);
+    }
+  }
+
+  // Initialize
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  document.addEventListener('DOMContentLoaded', restoreProgress);
+
+  // Save progress when leaving page
+  window.addEventListener('beforeunload', () => {
+    saveProgress(getScrollProgress());
+  });
+</script>

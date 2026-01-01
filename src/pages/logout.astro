@@ -1,0 +1,8 @@
+---
+import { getSupabaseClient } from '../lib/supabase.server';
+
+const supabase = await getSupabaseClient(Astro);
+await supabase.auth.signOut();
+
+return Astro.redirect('/login');
+---

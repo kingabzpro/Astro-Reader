@@ -1,0 +1,7 @@
+{
+  "id": "sample-book",
+  "title": "The Art of Programming",
+  "author": "Jane Developer",
+  "description": "A journey through the world of code, exploring the fundamentals and best practices that make great software.",
+  "coverImage": "/books/sample-book/cover.jpg"
+}

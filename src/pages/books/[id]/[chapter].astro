@@ -1,0 +1,168 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getBook, getChapter } from '../../../lib/books';
+import ChapterNavigation from '../../../components/ChapterNavigation.astro';
+import ReadingProgress from '../../../components/ReadingProgress.astro';
+
+const { id, chapter } = Astro.params;
+
+// Validate params
+if (!id || !chapter) {
+  return Astro.redirect('/404');
+}
+
+const book = await getBook(id);
+
+if (!book || !book.chapters.includes(chapter)) {
+  return Astro.redirect('/404');
+}
+
+const chapterContent = await getChapter(id, chapter);
+
+// Parse chapter content (convert markdown to HTML)
+// Simple markdown conversion for now
+function markdownToHTML(md: string) {
+  // Remove frontmatter if present
+  md = md.replace(/^---[\s\S]*?---\n/, '');
+
+  // Convert markdown to HTML (basic)
+  let html = md
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+
+  return `<p>${html}</p>`;
+}
+
+const chapterHTML = chapterContent ? markdownToHTML(chapterContent) : '';
+const chapterIndex = book.chapters.indexOf(chapter);
+const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.toUpperCase());
+---
+
+<Layout title={`${chapterTitle} - ${book.meta.title}`}>
+  <div class="chapter-reader">
+    <div class="chapter-breadcrumb">
+      <a href="/">Library</a>
+      <span class="separator">/</span>
+      <a href={`/books/${book.id}`}>{book.meta.title}</a>
+      <span class="separator">/</span>
+      <span class="current">Chapter {chapterIndex + 1}</span>
+    </div>
+
+    <article class="chapter-content">
+      <header class="chapter-header">
+        <p class="chapter-meta">Chapter {chapterIndex + 1}</p>
+        <h1>{chapterTitle}</h1>
+      </header>
+
+      <div class="chapter-body" set:html={chapterHTML} />
+    </article>
+
+    <ChapterNavigation
+      bookId={book.id}
+      chapters={book.chapters}
+      currentChapter={chapter}
+      client:load
+    />
+
+    <ReadingProgress
+      bookId={book.id}
+      chapterId={chapter}
+      client:load
+    />
+  </div>
+</Layout>
+
+<style>
+  .chapter-reader {
+    max-width: var(--reading-content-width, 720px);
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .chapter-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+    color: var(--text-color);
+    opacity: 0.7;
+  }
+
+  .chapter-breadcrumb a {
+    color: var(--accent-color);
+  }
+
+  .separator {
+    opacity: 0.5;
+  }
+
+  .chapter-header {
+    margin-bottom: 3rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .chapter-meta {
+    color: var(--accent-color);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .chapter-header h1 {
+    font-size: 2.5rem;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .chapter-body {
+    font-size: var(--reading-font-size, 18px);
+    line-height: var(--reading-line-height, 1.6);
+  }
+
+  .chapter-body :global(p) {
+    margin-bottom: 1.5em;
+  }
+
+  .chapter-body :global(h1) {
+    font-size: 2em;
+    margin-top: 2em;
+    margin-bottom: 1em;
+    font-family: Georgia, serif;
+  }
+
+  .chapter-body :global(h2) {
+    font-size: 1.5em;
+    margin-top: 1.5em;
+    margin-bottom: 0.75em;
+    font-family: Georgia, serif;
+  }
+
+  .chapter-body :global(h3) {
+    font-size: 1.25em;
+    margin-top: 1.25em;
+    margin-bottom: 0.5em;
+    font-family: Georgia, serif;
+  }
+
+  .chapter-body :global(br) {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .chapter-reader {
+      padding: 1.5rem 1rem;
+    }
+
+    .chapter-header h1 {
+      font-size: 2rem;
+    }
+  }
+</style>

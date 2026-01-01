@@ -1,0 +1,130 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Sign Up">
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1>Create an Account</h1>
+      <p>Sign up to start reading</p>
+
+      <form id="register-form" class="auth-form">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required minlength="6" />
+        </div>
+
+        <div class="form-group">
+          <label for="confirm-password">Confirm Password</label>
+          <input type="password" id="confirm-password" name="confirm-password" required minlength="6" />
+        </div>
+
+        <div id="error-message" class="error-message" style="display: none;"></div>
+        <div id="success-message" class="success-message" style="display: none;"></div>
+
+        <button type="submit" class="btn">Sign Up</button>
+      </form>
+
+      <p class="auth-footer">
+        Already have an account? <a href="/login">Sign in</a>
+      </p>
+    </div>
+  </div>
+
+  <style>
+    .auth-container {
+      min-height: calc(100vh - 65px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .auth-card {
+      max-width: 400px;
+      width: 100%;
+      padding: 2.5rem;
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .auth-card h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.75rem;
+    }
+
+    .auth-card > p {
+      margin: 0 0 2rem 0;
+      color: var(--text-color);
+      opacity: 0.7;
+    }
+
+    .auth-form {
+      margin-bottom: 1.5rem;
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    .auth-footer a {
+      color: var(--accent-color);
+      font-weight: 500;
+    }
+  </style>
+
+  <script>
+    const form = document.getElementById('register-form') as HTMLFormElement;
+    const errorMsg = document.getElementById('error-message')!;
+    const successMsg = document.getElementById('success-message')!;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = (document.getElementById('email') as HTMLInputElement).value;
+      const password = (document.getElementById('password') as HTMLInputElement).value;
+      const confirmPassword = (document.getElementById('confirm-password') as HTMLInputElement).value;
+
+      errorMsg.style.display = 'none';
+      successMsg.style.display = 'none';
+
+      if (password !== confirmPassword) {
+        errorMsg.textContent = 'Passwords do not match';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Registration failed');
+        }
+
+        successMsg.textContent = 'Account created! Redirecting to login...';
+        successMsg.style.display = 'block';
+
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
+      } catch (error) {
+        errorMsg.textContent = (error as Error).message;
+        errorMsg.style.display = 'block';
+      }
+    });
+  </script>
+</Layout>

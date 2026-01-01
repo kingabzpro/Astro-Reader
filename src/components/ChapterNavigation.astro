@@ -1,0 +1,108 @@
+---
+interface Props {
+  bookId: string;
+  chapters: string[];
+  currentChapter: string;
+}
+
+const { bookId, chapters, currentChapter } = Astro.props;
+
+const currentIndex = chapters.indexOf(currentChapter);
+const prevChapter = currentIndex > 0 ? chapters[currentIndex - 1] : null;
+const nextChapter = currentIndex < chapters.length - 1 ? chapters[currentIndex + 1] : null;
+---
+
+<nav class="chapter-nav">
+  {prevChapter && (
+    <a href={`/books/${bookId}/${prevChapter}`} class="nav-btn prev">
+      <span class="nav-icon">←</span>
+      <span class="nav-text">
+        <span class="nav-label">Previous</span>
+        <span class="nav-chapter">Chapter {currentIndex}</span>
+      </span>
+    </a>
+  )}
+
+  {nextChapter && (
+    <a href={`/books/${bookId}/${nextChapter}`} class="nav-btn next">
+      <span class="nav-text">
+        <span class="nav-label">Next</span>
+        <span class="nav-chapter">Chapter {currentIndex + 2}</span>
+      </span>
+      <span class="nav-icon">→</span>
+    </a>
+  )}
+</nav>
+
+<style>
+  .chapter-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 2rem;
+    margin: 3rem 0;
+  }
+
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--card-bg);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text-color);
+    transition: background 0.2s, transform 0.2s;
+  }
+
+  .nav-btn:hover {
+    background: var(--border-color);
+    transform: translateY(-2px);
+  }
+
+  .nav-btn.prev {
+    justify-content: flex-start;
+  }
+
+  .nav-btn.next {
+    justify-content: flex-end;
+    flex-direction: row-reverse;
+  }
+
+  .nav-icon {
+    font-size: 1.5rem;
+    opacity: 0.6;
+  }
+
+  .nav-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nav-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
+  }
+
+  .nav-chapter {
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  @media (max-width: 640px) {
+    .chapter-nav {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .nav-btn {
+      justify-content: center !important;
+    }
+
+    .nav-btn.next {
+      flex-direction: row;
+    }
+  }
+</style>
