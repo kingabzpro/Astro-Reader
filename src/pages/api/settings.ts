@@ -11,7 +11,16 @@ export const POST: APIRoute = async (context) => {
 	}
 
 	try {
-		await upsertUserSettings(userId, body);
+		// Transform snake_case to camelCase for database
+		const settings = {
+			theme: body.theme,
+			fontSize: body.font_size,
+			lineHeight: body.line_height,
+			contentWidth: body.content_width,
+			fontFamily: body.font_family,
+		};
+
+		await upsertUserSettings(userId, settings);
 		return new Response('OK', { status: 200 });
 	} catch (error) {
 		return new Response((error as Error).message, { status: 500 });

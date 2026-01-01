@@ -57,9 +57,9 @@ const { bookId, chapterId } = Astro.props;
       if (!response.ok) return;
 
       const data = await response.json();
-      if (data.scroll_position !== undefined) {
+      if (data.scrollPosition !== undefined) {
         const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-        window.scrollTo(0, data.scroll_position * docHeight);
+        window.scrollTo(0, data.scrollPosition * docHeight);
       }
     } catch (error) {
       console.error('Error restoring progress:', error);

@@ -13,6 +13,7 @@ let theme = 'system';
 let fontSize = 18;
 let lineHeight = 1.6;
 let contentWidth = 720;
+let fontFamily = 'sans-serif';
 
 if (Astro.locals.session && Astro.locals.user) {
   settings = await getUserSettings(Astro.locals.user.id);
@@ -22,6 +23,7 @@ if (Astro.locals.session && Astro.locals.user) {
     fontSize = parseFloat(settings.fontSize || '18');
     lineHeight = parseFloat(settings.lineHeight || '1.6');
     contentWidth = parseFloat(settings.contentWidth || '720');
+    fontFamily = settings.fontFamily || 'sans-serif';
   }
 }
 
@@ -52,7 +54,6 @@ const resolvedTheme = theme === 'system'
           {Astro.locals.session ? (
             <>
               <a href="/dashboard">Library</a>
-              <a href="/settings">Settings</a>
               <div class="nav-user-menu">
                 <button class="nav-user-button" id="user-menu-button">
                   <div class="user-avatar">
@@ -82,13 +83,6 @@ const resolvedTheme = theme === 'system'
                     </div>
                   </div>
                   <div class="dropdown-divider"></div>
-                  <a href="/settings" class="dropdown-item">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="3"/>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                    Settings
-                  </a>
                   <a href="/logout" class="dropdown-item dropdown-logout">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -118,11 +112,13 @@ const resolvedTheme = theme === 'system'
       fontSize: `${fontSize}px`,
       lineHeight: lineHeight.toString(),
       contentWidth: `${contentWidth}px`,
+      fontFamily: fontFamily,
     }}>
       :root {
         --reading-font-size: var(--fontSize);
         --reading-line-height: var(--lineHeight);
         --reading-content-width: var(--contentWidth);
+        --reading-font-family: var(--fontFamily);
 
         /* Modern Colorful Light Theme */
         --bg-primary: #fafbff;
@@ -197,9 +193,18 @@ const resolvedTheme = theme === 'system'
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: var(--bg-primary);
         color: var(--text-primary);
-        line-height: var(--reading-line-height);
+        line-height: 1.5;
         margin: 0;
         padding: 0;
+      }
+
+      /* Reading content container - applies font settings only to books */
+      .chapter-reader,
+      .chapter-body,
+      .book-content {
+        font-family: var(--reading-font-family), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: var(--reading-font-size);
+        line-height: var(--reading-line-height);
       }
 
       a {

@@ -20,22 +20,166 @@ if (!book || !book.chapters.includes(chapter)) {
 const chapterContent = await getChapter(id, chapter);
 
 // Parse chapter content (convert markdown to HTML)
-// Simple markdown conversion for now
 function markdownToHTML(md: string) {
   // Remove frontmatter if present
   md = md.replace(/^---[\s\S]*?---\n/, '');
 
-  // Convert markdown to HTML (basic)
-  let html = md
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br>');
+  // Split into lines
+  const lines = md.split('\n');
+  const result: string[] = [];
+  let inCodeBlock = false;
+  let inList = false;
+  let listType: 'ul' | 'ol' | null = null;
+  let listItems: string[] = [];
 
-  return `<p>${html}</p>`;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+
+    // Handle code blocks
+    if (trimmedLine.startsWith('```')) {
+      if (inCodeBlock) {
+        result.push('</code></pre>');
+        inCodeBlock = false;
+      } else {
+        // Close any open list
+        if (inList) {
+          result.push(listType === 'ul' ? '</ul>' : '</ol>');
+          inList = false;
+          listItems = [];
+        }
+        result.push('<pre><code>');
+        inCodeBlock = true;
+      }
+      continue;
+    }
+
+    // Inside code block - escape HTML but preserve formatting
+    if (inCodeBlock) {
+      result.push(line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+      continue;
+    }
+
+    // Empty line - close any open list and add paragraph break
+    if (trimmedLine === '') {
+      if (inList) {
+        result.push(listType === 'ul' ? '</ul>' : '</ol>');
+        inList = false;
+        listItems = [];
+      }
+      continue;
+    }
+
+    // Headers
+    if (trimmedLine.startsWith('#')) {
+      if (inList) {
+        result.push(listType === 'ul' ? '</ul>' : '</ol>');
+        inList = false;
+        listItems = [];
+      }
+      const match = trimmedLine.match(/^(#{1,4})\s+(.+)$/);
+      if (match) {
+        const level = match[1].length;
+        const text = escapeHtml(match[2]);
+        result.push(`<h${level}>${parseInline(text)}</h${level}>`);
+      }
+      continue;
+    }
+
+    // Horizontal rule
+    if (trimmedLine === '---' || trimmedLine === '***') {
+      if (inList) {
+        result.push(listType === 'ul' ? '</ul>' : '</ol>');
+        inList = false;
+        listItems = [];
+      }
+      result.push('<hr>');
+      continue;
+    }
+
+    // Unordered list items
+    if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
+      const content = trimmedLine.substring(2);
+      if (!inList || listType !== 'ul') {
+        if (inList) {
+          result.push(listType === 'ul' ? '</ul>' : '</ol>');
+        }
+        result.push('<ul>');
+        inList = true;
+        listType = 'ul';
+      }
+      result.push(`<li>${parseInline(escapeHtml(content))}</li>`);
+      continue;
+    }
+
+    // Ordered list items
+    const orderedMatch = trimmedLine.match(/^\d+\.\s+(.+)$/);
+    if (orderedMatch) {
+      const content = orderedMatch[1];
+      if (!inList || listType !== 'ol') {
+        if (inList) {
+          result.push(listType === 'ul' ? '</ul>' : '</ol>');
+        }
+        result.push('<ol>');
+        inList = true;
+        listType = 'ol';
+      }
+      result.push(`<li>${parseInline(escapeHtml(content))}</li>`);
+      continue;
+    }
+
+    // Blockquote
+    if (trimmedLine.startsWith('&gt; ') || trimmedLine.startsWith('> ')) {
+      if (inList) {
+        result.push(listType === 'ul' ? '</ul>' : '</ol>');
+        inList = false;
+        listItems = [];
+      }
+      const content = trimmedLine.startsWith('&gt; ') ? trimmedLine.substring(5) : trimmedLine.substring(2);
+      result.push(`<blockquote>${parseInline(escapeHtml(content))}</blockquote>`);
+      continue;
+    }
+
+    // Regular paragraph
+    if (inList) {
+      result.push(listType === 'ul' ? '</ul>' : '</ol>');
+      inList = false;
+      listItems = [];
+    }
+    result.push(`<p>${parseInline(escapeHtml(trimmedLine))}</p>`);
+  }
+
+  // Close any remaining list
+  if (inList) {
+    result.push(listType === 'ul' ? '</ul>' : '</ol>');
+  }
+
+  return result.join('\n');
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function parseInline(text: string): string {
+  // Code (must be before other processing)
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Bold and italic
+  text = text.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  // Links
+  text = text.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>');
+
+  // Images
+  text = text.replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, '<img src="$2" alt="$1">');
+
+  return text;
 }
 
 const chapterHTML = chapterContent ? markdownToHTML(chapterContent) : '';
@@ -45,6 +189,75 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
 
 <Layout title={`${chapterTitle} - ${book.meta.title}`}>
   <div class="chapter-reader">
+    <!-- Settings Toggle Button -->
+    <button class="settings-toggle" id="settings-toggle" aria-label="Reading settings">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settings-panel">
+      <div class="settings-header">
+        <h3>Reading Settings</h3>
+        <button class="close-settings" id="close-settings">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Font Size -->
+      <div class="setting-row">
+        <label class="setting-label">
+          <span>Font Size</span>
+          <span class="value-display" id="font-size-value">18</span>
+        </label>
+        <input type="range" min="14" max="24" step="1" value="18" id="font-size" class="setting-slider" />
+      </div>
+
+      <!-- Line Height -->
+      <div class="setting-row">
+        <label class="setting-label">
+          <span>Line Height</span>
+          <span class="value-display" id="line-height-value">1.6</span>
+        </label>
+        <input type="range" min="1.4" max="2.0" step="0.1" value="1.6" id="line-height" class="setting-slider" />
+      </div>
+
+      <!-- Content Width -->
+      <div class="setting-row">
+        <label class="setting-label">
+          <span>Content Width</span>
+          <span class="value-display" id="width-value">720</span>
+        </label>
+        <input type="range" min="500" max="900" step="20" value="720" id="content-width" class="setting-slider" />
+      </div>
+
+      <!-- Font Family -->
+      <div class="setting-row">
+        <label class="setting-label">Font Family</label>
+        <div class="button-group">
+          <button class="font-option active" data-font="sans-serif">Sans</button>
+          <button class="font-option" data-font="serif">Serif</button>
+        </div>
+      </div>
+
+      <!-- Theme -->
+      <div class="setting-row">
+        <label class="setting-label">Theme</label>
+        <div class="button-group">
+          <button class="theme-option" data-theme="light">Light</button>
+          <button class="theme-option" data-theme="dark">Dark</button>
+          <button class="theme-option" data-theme="sepia">Sepia</button>
+        </div>
+      </div>
+
+      <p class="settings-note">Settings apply to all chapters and persist until changed</p>
+    </div>
+
     <div class="chapter-breadcrumb">
       <a href="/">Library</a>
       <span class="separator">/</span>
@@ -82,87 +295,681 @@ const chapterTitle = chapter.replace(/-/g, ' ').replace(/^./, (c: string) => c.t
     max-width: var(--reading-content-width, 720px);
     margin: 0 auto;
     padding: 2rem;
+    position: relative;
   }
 
+  /* Settings Toggle Button */
+  .settings-toggle {
+    position: fixed;
+    top: 5rem;
+    right: 2rem;
+    width: 48px;
+    height: 48px;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+    z-index: 100;
+    color: #6366f1;
+  }
+
+  .settings-toggle:hover {
+    border-color: #6366f1;
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.2);
+    transform: scale(1.05);
+  }
+
+  /* Settings Panel */
+  .settings-panel {
+    position: fixed;
+    top: 5rem;
+    right: 5rem;
+    width: 320px;
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e2e8f0;
+    z-index: 99;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(20px);
+    transition: all 0.3s ease;
+  }
+
+  .settings-panel.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+  }
+
+  .settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .settings-header h3 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1e1b4b;
+  }
+
+  .close-settings {
+    width: 32px;
+    height: 32px;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    transition: all 0.2s;
+  }
+
+  .close-settings:hover {
+    background: #e2e8f0;
+    color: #1e1b4b;
+  }
+
+  .setting-row {
+    margin-bottom: 1.25rem;
+  }
+
+  .setting-row:last-of-type {
+    margin-bottom: 1rem;
+  }
+
+  .setting-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #475569;
+  }
+
+  .value-display {
+    background: #f1f5f9;
+    color: #6366f1;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .setting-slider {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #e2e8f0;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .setting-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6366f1;
+    cursor: pointer;
+  }
+
+  .setting-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6366f1;
+    cursor: pointer;
+    border: none;
+  }
+
+  .button-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .font-option,
+  .theme-option {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #475569;
+    transition: all 0.2s;
+  }
+
+  .font-option:hover,
+  .theme-option:hover {
+    border-color: #6366f1;
+    background: #f1f5f9;
+  }
+
+  .font-option.active,
+  .theme-option.active {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: white;
+  }
+
+  .settings-note {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin: 1rem 0 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  /* Breadcrumb */
   .chapter-breadcrumb {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.9rem;
-    margin-bottom: 2rem;
-    color: var(--text-color);
-    opacity: 0.7;
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+    color: #64748b;
   }
 
   .chapter-breadcrumb a {
-    color: var(--accent-color);
+    color: #6366f1;
+    text-decoration: none;
+  }
+
+  .chapter-breadcrumb a:hover {
+    text-decoration: underline;
   }
 
   .separator {
-    opacity: 0.5;
+    color: #cbd5e1;
   }
 
+  .current {
+    color: #94a3b8;
+  }
+
+  /* Chapter Content */
   .chapter-header {
-    margin-bottom: 3rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
   }
 
   .chapter-meta {
-    color: var(--accent-color);
-    font-size: 0.875rem;
+    color: #6366f1;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin: 0 0 0.5rem 0;
+    font-weight: 600;
   }
 
   .chapter-header h1 {
-    font-size: 2.5rem;
+    font-size: 2rem;
     margin: 0;
     line-height: 1.2;
+    color: #1e1b4b;
+    font-family: var(--reading-font-family), 'Inter', -apple-system, sans-serif;
   }
 
   .chapter-body {
     font-size: var(--reading-font-size, 18px);
     line-height: var(--reading-line-height, 1.6);
+    font-family: var(--reading-font-family), 'Inter', -apple-system, sans-serif;
+    color: #334155;
   }
 
   .chapter-body :global(p) {
     margin-bottom: 1.5em;
   }
 
+  .chapter-body :global(h1),
+  .chapter-body :global(h2),
+  .chapter-body :global(h3),
+  .chapter-body :global(h4) {
+    font-family: var(--reading-font-family), 'Inter', -apple-system, sans-serif;
+    color: #1e1b4b;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+  }
+
   .chapter-body :global(h1) {
-    font-size: 2em;
-    margin-top: 2em;
-    margin-bottom: 1em;
-    font-family: Georgia, serif;
+    font-size: 1.75em;
   }
 
   .chapter-body :global(h2) {
     font-size: 1.5em;
-    margin-top: 1.5em;
-    margin-bottom: 0.75em;
-    font-family: Georgia, serif;
   }
 
   .chapter-body :global(h3) {
     font-size: 1.25em;
-    margin-top: 1.25em;
-    margin-bottom: 0.5em;
-    font-family: Georgia, serif;
+  }
+
+  .chapter-body :global(h4) {
+    font-size: 1.1em;
   }
 
   .chapter-body :global(br) {
     display: none;
   }
 
+  /* Code blocks */
+  .chapter-body :global(pre) {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1.5em 0;
+  }
+
+  .chapter-body :global(code) {
+    background: #f1f5f9;
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 0.9em;
+  }
+
+  .chapter-body :global(pre code) {
+    background: transparent;
+    padding: 0;
+  }
+
+  /* Lists */
+  .chapter-body :global(ul),
+  .chapter-body :global(ol) {
+    margin: 1.5em 0;
+    padding-left: 2em;
+  }
+
+  .chapter-body :global(li) {
+    margin-bottom: 0.5em;
+  }
+
+  /* Blockquotes */
+  .chapter-body :global(blockquote) {
+    border-left: 4px solid #6366f1;
+    padding-left: 1.5em;
+    margin: 1.5em 0;
+    color: #64748b;
+    font-style: italic;
+  }
+
+  /* Horizontal rule */
+  .chapter-body :global(hr) {
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    margin: 2em 0;
+  }
+
+  /* Links */
+  .chapter-body :global(a) {
+    color: #6366f1;
+    text-decoration: underline;
+  }
+
+  .chapter-body :global(a:hover) {
+    color: #4f46e5;
+  }
+
+  /* Images */
+  .chapter-body :global(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1.5em 0;
+  }
+
+  /* Dark theme adjustments */
+  :global([data-theme="dark"]) .settings-toggle,
+  :global([data-theme="dark"]) .settings-panel {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  :global([data-theme="dark"]) .settings-header h3 {
+    color: #f8fafc;
+  }
+
+  :global([data-theme="dark"]) .setting-label {
+    color: #cbd5e1;
+  }
+
+  :global([data-theme="dark"]) .value-display {
+    background: #334155;
+    color: #818cf8;
+  }
+
+  :global([data-theme="dark"]) .setting-slider {
+    background: #334155;
+  }
+
+  :global([data-theme="dark"]) .close-settings {
+    background: #334155;
+    color: #94a3b8;
+  }
+
+  :global([data-theme="dark"]) .close-settings:hover {
+    background: #475569;
+    color: #f8fafc;
+  }
+
+  :global([data-theme="dark"]) .font-option,
+  :global([data-theme="dark"]) .theme-option {
+    background: #334155;
+    border-color: #475569;
+    color: #cbd5e1;
+  }
+
+  :global([data-theme="dark"]) .font-option:hover,
+  :global([data-theme="dark"]) .theme-option:hover {
+    border-color: #818cf8;
+    background: #475569;
+  }
+
+  :global([data-theme="dark"]) .chapter-header h1,
+  :global([data-theme="dark"]) .chapter-body,
+  :global([data-theme="dark"]) .chapter-body :global(h1),
+  :global([data-theme="dark"]) .chapter-body :global(h2),
+  :global([data-theme="dark"]) .chapter-body :global(h3),
+  :global([data-theme="dark"]) .chapter-body :global(h4) {
+    color: #f1f5f9 !important;
+  }
+
+  :global([data-theme="dark"]) .chapter-body :global(pre) {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  :global([data-theme="dark"]) .chapter-body :global(code) {
+    background: #334155;
+  }
+
+  :global([data-theme="dark"]) .chapter-body :global(blockquote) {
+    border-left-color: #818cf8;
+    color: #94a3b8;
+  }
+
+  :global([data-theme="dark"]) .chapter-body :global(hr) {
+    border-top-color: #334155;
+  }
+
+  :global([data-theme="dark"]) .chapter-body :global(a) {
+    color: #818cf8;
+  }
+
+  :global([data-theme="dark"]) .chapter-body :global(a:hover) {
+    color: #a78bfa;
+  }
+
+  /* Sepia theme adjustments */
+  :global([data-theme="sepia"]) .settings-toggle,
+  :global([data-theme="sepia"]) .settings-panel {
+    background: #fefcf8;
+    border-color: #e6dcc8;
+  }
+
+  :global([data-theme="sepia"]) .settings-header h3 {
+    color: #5c4b37;
+  }
+
+  :global([data-theme="sepia"]) .setting-label {
+    color: #7d6a54;
+  }
+
+  :global([data-theme="sepia"]) .value-display {
+    background: #f5f0e6;
+    color: #d97706;
+  }
+
+  :global([data-theme="sepia"]) .setting-slider {
+    background: #e6dcc8;
+  }
+
+  :global([data-theme="sepia"]) .close-settings {
+    background: #f5f0e6;
+    color: #a89880;
+  }
+
+  :global([data-theme="sepia"]) .font-option,
+  :global([data-theme="sepia"]) .theme-option {
+    background: #f5f0e6;
+    border-color: #e6dcc8;
+    color: #5c4b37;
+  }
+
+  :global([data-theme="sepia"]) .font-option:hover,
+  :global([data-theme="sepia"]) .theme-option:hover {
+    border-color: #d97706;
+    background: #e6dcc8;
+  }
+
+  :global([data-theme="sepia"]) .chapter-header h1,
+  :global([data-theme="sepia"]) .chapter-body,
+  :global([data-theme="sepia"]) .chapter-body :global(h1),
+  :global([data-theme="sepia"]) .chapter-body :global(h2),
+  :global([data-theme="sepia"]) .chapter-body :global(h3),
+  :global([data-theme="sepia"]) .chapter-body :global(h4) {
+    color: #5c4b37 !important;
+  }
+
+  :global([data-theme="sepia"]) .chapter-body :global(pre) {
+    background: #f5f0e6;
+    border-color: #e6dcc8;
+  }
+
+  :global([data-theme="sepia"]) .chapter-body :global(code) {
+    background: #e6dcc8;
+  }
+
+  :global([data-theme="sepia"]) .chapter-body :global(blockquote) {
+    border-left-color: #d97706;
+    color: #7d6a54;
+  }
+
+  :global([data-theme="sepia"]) .chapter-body :global(hr) {
+    border-top-color: #e6dcc8;
+  }
+
+  :global([data-theme="sepia"]) .chapter-body :global(a) {
+    color: #d97706;
+  }
+
+  :global([data-theme="sepia"]) .chapter-body :global(a:hover) {
+    color: #b45309;
+  }
+
   @media (max-width: 768px) {
-    .chapter-reader {
-      padding: 1.5rem 1rem;
+    .settings-toggle {
+      top: 4rem;
+      right: 1rem;
     }
 
-    .chapter-header h1 {
-      font-size: 2rem;
+    .settings-panel {
+      top: 4rem;
+      right: 1rem;
+      width: calc(100% - 2rem);
+      max-width: 320px;
+    }
+
+    .chapter-reader {
+      padding: 1rem;
     }
   }
 </style>
+
+<script>
+  // Reading Settings Manager - uses session storage
+  class ReadingSettings {
+    constructor() {
+      this.settings = this.loadSettings();
+      this.initUI();
+      this.applySettings();
+    }
+
+    loadSettings() {
+      // Try session storage first (for current session)
+      const sessionSettings = sessionStorage.getItem('readingSettings');
+      if (sessionSettings) {
+        return JSON.parse(sessionSettings);
+      }
+
+      // Fall back to localStorage (persists across sessions)
+      const localSettings = localStorage.getItem('readingSettings');
+      if (localSettings) {
+        return JSON.parse(localSettings);
+      }
+
+      // Default settings
+      return {
+        fontSize: 18,
+        lineHeight: 1.6,
+        contentWidth: 720,
+        fontFamily: 'sans-serif',
+        theme: 'system'
+      };
+    }
+
+    saveSettings() {
+      // Save to both storages
+      const settingsJson = JSON.stringify(this.settings);
+      sessionStorage.setItem('readingSettings', settingsJson);
+      localStorage.setItem('readingSettings', settingsJson);
+    }
+
+    applySettings() {
+      const root = document.documentElement;
+
+      // Apply font settings
+      root.style.setProperty('--reading-font-size', `${this.settings.fontSize}px`);
+      root.style.setProperty('--reading-line-height', this.settings.lineHeight);
+      root.style.setProperty('--reading-content-width', `${this.settings.contentWidth}px`);
+      root.style.setProperty('--reading-font-family', this.settings.fontFamily);
+
+      // Apply theme
+      let resolvedTheme = this.settings.theme;
+      if (resolvedTheme === 'system') {
+        resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      root.setAttribute('data-theme', resolvedTheme);
+
+      // Update UI controls
+      document.getElementById('font-size').value = this.settings.fontSize;
+      document.getElementById('font-size-value').textContent = this.settings.fontSize;
+
+      document.getElementById('line-height').value = this.settings.lineHeight;
+      document.getElementById('line-height-value').textContent = this.settings.lineHeight;
+
+      document.getElementById('content-width').value = this.settings.contentWidth;
+      document.getElementById('width-value').textContent = this.settings.contentWidth;
+
+      // Update active buttons
+      document.querySelectorAll('.font-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.font === this.settings.fontFamily);
+      });
+
+      document.querySelectorAll('.theme-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === this.settings.theme);
+      });
+    }
+
+    initUI() {
+      // Settings panel toggle
+      const toggle = document.getElementById('settings-toggle');
+      const panel = document.getElementById('settings-panel');
+      const close = document.getElementById('close-settings');
+
+      toggle?.addEventListener('click', () => {
+        panel.classList.toggle('open');
+      });
+
+      close?.addEventListener('click', () => {
+        panel.classList.remove('open');
+      });
+
+      // Font size
+      const fontSizeInput = document.getElementById('font-size');
+      fontSizeInput?.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        this.settings.fontSize = value;
+        document.documentElement.style.setProperty('--reading-font-size', `${value}px`);
+        document.getElementById('font-size-value').textContent = value;
+        this.saveSettings();
+      });
+
+      // Line height
+      const lineHeightInput = document.getElementById('line-height');
+      lineHeightInput?.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        this.settings.lineHeight = value;
+        document.documentElement.style.setProperty('--reading-line-height', value);
+        document.getElementById('line-height-value').textContent = value;
+        this.saveSettings();
+      });
+
+      // Content width
+      const widthInput = document.getElementById('content-width');
+      widthInput?.addEventListener('input', (e) => {
+        const value = parseInt(e.target.value);
+        this.settings.contentWidth = value;
+        document.documentElement.style.setProperty('--reading-content-width', `${value}px`);
+        document.getElementById('width-value').textContent = value;
+        this.saveSettings();
+      });
+
+      // Font family
+      document.querySelectorAll('.font-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const font = btn.dataset.font;
+          this.settings.fontFamily = font;
+          document.documentElement.style.setProperty('--reading-font-family', font);
+
+          document.querySelectorAll('.font-option').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          this.saveSettings();
+        });
+      });
+
+      // Theme
+      document.querySelectorAll('.theme-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const theme = btn.dataset.theme;
+          this.settings.theme = theme;
+
+          let resolvedTheme = theme;
+          if (theme === 'system') {
+            resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+
+          document.documentElement.setAttribute('data-theme', resolvedTheme);
+
+          document.querySelectorAll('.theme-option').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          this.saveSettings();
+        });
+      });
+    }
+  }
+
+  // Initialize settings when page loads
+  new ReadingSettings();
+</script>

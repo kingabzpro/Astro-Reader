@@ -49,6 +49,13 @@ const progressBooks = await Promise.all(
               const chapterIndex = book.chapters.indexOf(progress.chapterId);
               const chapterName = progress.chapterId.replace(/-/g, ' ').replace(/^./, (c: string) => c.toUpperCase());
 
+              // Calculate overall book progress
+              const totalChapters = book.chapters.length;
+              const chaptersRead = chapterIndex;
+              const chapterProgress = progress.scrollPosition || 0;
+              const overallProgress = ((chaptersRead + chapterProgress) / totalChapters) * 100;
+              const chapterProgressPercent = Math.round(chapterProgress * 100);
+
               return (
                 <a href={`/books/${book.id}/${progress.chapterId}`} class="continue-card">
                   <img
@@ -58,11 +65,14 @@ const progressBooks = await Promise.all(
                   />
                   <div class="continue-info">
                     <h3>{book.meta.title}</h3>
-                    <p class="continue-meta">Chapter {chapterIndex + 1}: {chapterName}</p>
+                    <p class="continue-meta">
+                      Chapter {chapterIndex + 1} of {totalChapters}
+                      {chapterProgressPercent > 10 ? ` · ${chapterProgressPercent}% through chapter` : ''}
+                    </p>
                     <div class="progress-bar">
-                      <div class="progress-fill" style={`width: ${progress.scrollPosition * 100}%`}></div>
+                      <div class="progress-fill" style={`width: ${overallProgress}%`}></div>
                     </div>
-                    <p class="continue-percent">{Math.round(progress.scrollPosition * 100)}% complete</p>
+                    <p class="continue-percent">{Math.round(overallProgress)}% of book</p>
                   </div>
                 </a>
               );

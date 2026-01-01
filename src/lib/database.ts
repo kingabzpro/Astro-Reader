@@ -16,6 +16,7 @@ export async function upsertUserSettings(
 		fontSize?: string;
 		lineHeight?: string;
 		contentWidth?: string;
+		fontFamily?: string;
 	}
 ) {
 	await db

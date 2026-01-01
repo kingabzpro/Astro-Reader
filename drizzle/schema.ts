@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, doublePrecision, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, doublePrecision, boolean, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Better Auth user table
@@ -44,11 +44,12 @@ export const session = pgTable('session', {
 // Reader settings table
 export const readerSettings = pgTable('reader_settings', {
 	id: uuid('id').primaryKey().defaultRandom(),
-	userId: uuid('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+	userId: uuid('user_id').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
 	theme: text('theme').notNull().default('system'),
 	fontSize: text('font_size').notNull().default('18'),
 	lineHeight: text('line_height').notNull().default('1.6'),
 	contentWidth: text('content_width').notNull().default('720'),
+	fontFamily: text('font_family').notNull().default('sans-serif'),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -63,7 +64,9 @@ export const readingProgress = pgTable('reading_progress', {
 	lastReadAt: timestamp('last_read_at').defaultNow().notNull(),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+	userBookChapterIdx: uniqueIndex('user_book_chapter_idx').on(table.userId, table.bookId, table.chapterId),
+}));
 
 // Relations
 export const userRelations = relations(user, ({ many }) => ({
