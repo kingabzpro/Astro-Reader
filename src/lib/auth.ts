@@ -1,6 +1,10 @@
 import { betterAuth } from "better-auth";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
+import dotenv from "dotenv";
+
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' });
 
 // Create database connection
 const sql = neon(process.env.DATABASE_URL!);

@@ -11,5 +11,7 @@ export default defineConfig({
     optimizeDeps: {
       exclude: ['@supabase/supabase-js'],
     },
+    // Define env variables for client-side access (server-side can use process.env)
+    envPrefix: 'PUBLIC_',
   },
 });
