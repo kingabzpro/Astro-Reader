@@ -3,10 +3,18 @@ import Layout from '../layouts/Layout.astro';
 import { getAllBooks, getBook } from '../lib/books';
 import { getAllReadingProgress } from '../lib/database';
 
+// Get all books for the "Browse" section
+const allBooks = await getAllBooks();
+
 // Get recent progress across all books
 let progressList: any[] = [];
+
+console.log('Dashboard - Session:', !!Astro.locals.session);
+console.log('Dashboard - User:', Astro.locals.user?.id);
+
 if (Astro.locals.session && Astro.locals.user) {
   progressList = await getAllReadingProgress(Astro.locals.user.id);
+  console.log('Dashboard - Progress list:', progressList.length, 'items');
 
   // Group by book and get latest progress per book
   const progressMap = new Map();
@@ -16,75 +24,93 @@ if (Astro.locals.session && Astro.locals.user) {
       progressMap.set(item.bookId, item);
     }
   }
-  progressList = Array.from(progressMap.values()).slice(0, 5);
+  progressList = Array.from(progressMap.values());
+  console.log('Dashboard - Grouped progress:', progressList.length, 'books');
 }
 
 // Pre-fetch all books for progress items
 const progressBooks = await Promise.all(
   progressList.map(async (p) => ({ progress: p, book: await getBook(p.bookId) }))
-);
+).then(results => results.filter(r => r.book !== null));
+
+console.log('Dashboard - Progress books:', progressBooks.length);
 ---
 
 <Layout title="Dashboard">
   <div class="dashboard-page">
     <header class="dashboard-header">
       <h1>Hello, {Astro.locals.user?.name || 'User'}! 👋</h1>
-      <p>Continue where you left off</p>
+      <p>Welcome to your reading dashboard</p>
     </header>
 
     {progressBooks.length === 0 ? (
       <div class="empty-state">
-        <h2>No reading progress yet</h2>
-        <p>Start reading a book to track your progress</p>
-        <a href="/" class="btn">Browse Library</a>
+        <div class="empty-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+        </div>
+        <h2>Start Your Reading Journey</h2>
+        <p>Choose a book below to begin tracking your progress</p>
       </div>
     ) : (
-      <>
-        <section class="continue-reading">
-          <h2>Continue Reading</h2>
-          <div class="progress-list">
-            {progressBooks.map(({ progress, book }) => {
-              if (!book) return null;
+      <section class="continue-reading">
+        <h2>Continue Reading</h2>
+        <div class="progress-list">
+          {progressBooks.map(({ progress, book }) => {
+            const chapterIndex = book.chapters.indexOf(progress.chapterId);
 
-              const chapterIndex = book.chapters.indexOf(progress.chapterId);
-              const chapterName = progress.chapterId.replace(/-/g, ' ').replace(/^./, (c: string) => c.toUpperCase());
+            // Calculate overall book progress (just based on which chapter)
+            const totalChapters = book.chapters.length;
+            const chaptersRead = chapterIndex;
+            const overallProgress = ((chaptersRead + 1) / totalChapters) * 100;
 
-              // Calculate overall book progress
-              const totalChapters = book.chapters.length;
-              const chaptersRead = chapterIndex;
-              const chapterProgress = progress.scrollPosition || 0;
-              const overallProgress = ((chaptersRead + chapterProgress) / totalChapters) * 100;
-              const chapterProgressPercent = Math.round(chapterProgress * 100);
-
-              return (
-                <a href={`/books/${book.id}/${progress.chapterId}`} class="continue-card">
-                  <img
-                    src={`/books/${book.id}/cover.jpg`}
-                    alt={`Cover of ${book.meta.title}`}
-                    class="continue-cover"
-                  />
-                  <div class="continue-info">
-                    <h3>{book.meta.title}</h3>
-                    <p class="continue-meta">
-                      Chapter {chapterIndex + 1} of {totalChapters}
-                      {chapterProgressPercent > 10 ? ` · ${chapterProgressPercent}% through chapter` : ''}
-                    </p>
-                    <div class="progress-bar">
-                      <div class="progress-fill" style={`width: ${overallProgress}%`}></div>
-                    </div>
-                    <p class="continue-percent">{Math.round(overallProgress)}% of book</p>
+            return (
+              <a href={`/books/${book.id}/${progress.chapterId}`} class="continue-card">
+                <img
+                  src={`/books/${book.id}/cover.jpg`}
+                  alt={`Cover of ${book.meta.title}`}
+                  class="continue-cover"
+                />
+                <div class="continue-info">
+                  <h3>{book.meta.title}</h3>
+                  <p class="continue-meta">
+                    On Chapter {chapterIndex + 1} of {totalChapters}
+                  </p>
+                  <div class="progress-bar">
+                    <div class="progress-fill" style={`width: ${overallProgress}%`}></div>
                   </div>
-                </a>
-              );
-            })}
-          </div>
-        </section>
-
-        <section class="browse-section">
-          <a href="/" class="btn secondary-btn">Browse All Books</a>
-        </section>
-      </>
+                  <p class="continue-percent">{Math.round(overallProgress)}% complete</p>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </section>
     )}
+
+    <section class="all-books-section">
+      <h2>{progressBooks.length === 0 ? '' : 'More Books'}</h2>
+      <div class="books-grid">
+        {allBooks.map(book => (
+          <a href={`/books/${book.id}/${book.chapters[0] || 'chapter-01'}`} class="book-card">
+            <div class="book-cover">
+              <img
+                src={`/books/${book.id}/cover.jpg`}
+                alt={`Cover of ${book.meta.title}`}
+                loading="lazy"
+              />
+            </div>
+            <div class="book-info">
+              <h3>{book.meta.title}</h3>
+              <p class="book-author">{book.meta.author}</p>
+              <p class="book-chapters">{book.chapters.length} chapters</p>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
   </div>
 </Layout>
 
@@ -127,6 +153,12 @@ const progressBooks = await Promise.all(
     opacity: 0.7;
   }
 
+  .empty-icon {
+    color: var(--accent-primary);
+    opacity: 0.3;
+    margin-bottom: 1.5rem;
+  }
+
   .continue-reading h2 {
     margin: 0 0 1.5rem 0;
     font-size: 1.75rem;
@@ -136,6 +168,7 @@ const progressBooks = await Promise.all(
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    margin-bottom: 3rem;
   }
 
   .continue-card {
@@ -187,37 +220,84 @@ const progressBooks = await Promise.all(
 
   .progress-fill {
     height: 100%;
-    background: var(--accent-color);
+    background: var(--accent-primary);
     transition: width 0.3s;
   }
 
   .continue-percent {
     margin: 0;
     font-size: 0.85rem;
-    color: var(--accent-color);
+    color: var(--accent-primary);
     font-weight: 500;
   }
 
-  .browse-section {
+  .all-books-section {
     margin-top: 3rem;
-    text-align: center;
   }
 
-  .secondary-btn {
-    display: inline-block;
-    padding: 0.75rem 1.5rem;
-    background: transparent;
-    color: var(--accent-color);
-    border: 2px solid var(--accent-color);
-    border-radius: 8px;
+  .all-books-section h2 {
+    font-size: 1.75rem;
+    margin: 0 0 1.5rem 0;
+  }
+
+  .books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .book-card {
     text-decoration: none;
-    font-weight: 500;
-    transition: all 0.2s;
+    color: inherit;
+    display: block;
   }
 
-  .secondary-btn:hover {
-    background: var(--accent-color);
-    color: white;
+  .book-card:hover .book-cover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .book-cover {
+    position: relative;
+    width: 100%;
+    padding-top: 150%;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    margin-bottom: 0.75rem;
+  }
+
+  .book-cover img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .book-info h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .book-author {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.25rem 0;
+  }
+
+  .book-chapters {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    margin: 0;
   }
 
   @media (max-width: 640px) {
@@ -228,6 +308,11 @@ const progressBooks = await Promise.all(
     .continue-cover {
       width: 100%;
       height: 200px;
+    }
+
+    .books-grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem;
     }
   }
 </style>

@@ -39,6 +39,8 @@ const resolvedTheme = theme === 'system'
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   </head>
   <body>
     <nav class="nav-header">
@@ -53,7 +55,7 @@ const resolvedTheme = theme === 'system'
         <div class="nav-links">
           {Astro.locals.session ? (
             <>
-              <a href="/dashboard">Library</a>
+              <a href="/dashboard">Dashboard</a>
               <div class="nav-user-menu">
                 <button class="nav-user-button" id="user-menu-button">
                   <div class="user-avatar">
